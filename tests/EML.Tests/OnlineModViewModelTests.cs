@@ -11,6 +11,109 @@ public sealed class OnlineModViewModelTests
     private static readonly OnlineModDependency Optional = new()
     { Key = "optional-project", Project = new(ModProvider.Modrinth, "extra"), Name = "Extra", Kind = OnlineDependencyKind.Optional };
 
+    /// <summary>结果选择本身不导航，只有显式打开才进入独立详情页。</summary>
+    [Fact]
+    public async Task ExplicitOpenEntersDetailsWithoutNavigationFromSelection()
+    {
+        var vm = Create(new Catalog());
+        await SelectAsync(vm);
+        Assert.False(vm.IsDetailOpen);
+        var project = vm.SelectedProject;
+        vm.OpenDetailsCommand.Execute(project);
+        Assert.True(vm.IsDetailOpen);
+        Assert.Same(project, vm.SelectedProject);
+        Assert.False(vm.OpenDetailsCommand.CanExecute(null));
+        vm.BackToResultsCommand.Execute(null);
+        Assert.False(vm.IsDetailOpen);
+        Assert.Same(project, vm.SelectedProject);
+        await vm.StopAsync();
+    }
+
+    /// <summary>详情返回往返保留精确版本、可选依赖、分页结果及安装清单，不重新搜索。</summary>
+    [Fact]
+    public async Task ReturningAndReopeningKeepsVersionDependenciesAndPlan()
+    {
+        var catalog = new Catalog(); var vm = Create(catalog);
+        await vm.SearchCommand.ExecuteAsync(null);
+        var row = Assert.Single(vm.Projects);
+        vm.OpenDetailsCommand.Execute(row);
+        await vm.DetailTask; await vm.VersionTask;
+        vm.OptionalDependencies[0].IsSelected = true;
+        await vm.PreviewCommand.ExecuteAsync(null);
+        var version = vm.SelectedVersion; var file = vm.SelectedFile; var details = vm.VersionDetails; var plan = vm.Plan;
+        var searches = catalog.Searches;
+        vm.BackToResultsCommand.Execute(null);
+        Assert.False(vm.IsDetailOpen);
+        Assert.Same(plan, vm.Plan);
+        Assert.Same(row, Assert.Single(vm.Projects));
+        vm.OpenDetailsCommand.Execute(row);
+        Assert.True(vm.IsDetailOpen);
+        Assert.Same(version, vm.SelectedVersion); Assert.Same(file, vm.SelectedFile);
+        Assert.Same(details, vm.VersionDetails); Assert.Same(plan, vm.Plan);
+        Assert.True(vm.OptionalDependencies[0].IsSelected);
+        Assert.Equal(searches, catalog.Searches);
+        Assert.True(vm.InstallCommand.CanExecute(null));
+        await vm.StopAsync();
+    }
+
+    /// <summary>返回列表后迟到的介绍和版本只更新数据，不重新打开详情。</summary>
+    [Fact]
+    public async Task LateDetailsCannotReopenPageAfterBack()
+    {
+        var pending = new TaskCompletionSource<OnlineModProject>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var vm = Create(new Catalog { Detail = _ => pending.Task });
+        vm.OpenDetailsCommand.Execute(new OnlineModResultRow(Project("waiting")));
+        var detail = vm.DetailTask;
+        Assert.True(vm.IsDetailOpen);
+        vm.BackToResultsCommand.Execute(null);
+        pending.SetResult(Project("loaded"));
+        await detail; await vm.VersionTask;
+        Assert.NotNull(vm.ProjectDetails); Assert.NotNull(vm.SelectedFile);
+        Assert.False(vm.IsDetailOpen);
+        await vm.StopAsync();
+    }
+
+    /// <summary>切换筛选或目标实例必须退出旧详情，并失效旧清单。</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ContextChangesCloseDetailsAndInvalidatePlan(bool switchInstance)
+    {
+        var vm = Create(new Catalog()); await SelectAsync(vm);
+        vm.OpenDetailsCommand.Execute(vm.SelectedProject);
+        await vm.PreviewCommand.ExecuteAsync(null);
+        Assert.True(vm.IsDetailOpen); Assert.NotNull(vm.Plan);
+        if (switchInstance) vm.SetInstance(Instance("new"));
+        else vm.SearchText = "new query";
+        Assert.False(vm.IsDetailOpen); Assert.Null(vm.Plan); Assert.Null(vm.SelectedProject);
+        await vm.StopAsync();
+    }
+
+    /// <summary>安装期间返回浏览页不取消下载，仍能重开当前任务详情，进度独立于页面可见。</summary>
+    [Fact]
+    public async Task BackDuringInstallKeepsTaskAndCurrentDetailsAvailable()
+    {
+        var pending = new TaskCompletionSource<OnlineModInstallResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken installToken = default;
+        var installer = new Installer { Install = (_, _, token) => { installToken = token; return pending.Task; } };
+        var vm = Create(new Catalog(), installer); await SelectAsync(vm);
+        vm.OpenDetailsCommand.Execute(vm.SelectedProject);
+        await vm.PreviewCommand.ExecuteAsync(null);
+        var install = vm.InstallCommand.ExecuteAsync(null);
+        Assert.True(vm.IsInstalling); Assert.True(vm.HasInstallActivity);
+        vm.BackToResultsCommand.Execute(null);
+        Assert.False(vm.IsDetailOpen); Assert.False(installToken.IsCancellationRequested);
+        Assert.True(vm.HasInstallActivity);
+        Assert.True(vm.OpenDetailsCommand.CanExecute(vm.SelectedProject));
+        Assert.False(vm.OpenDetailsCommand.CanExecute(new OnlineModResultRow(Project("other"))));
+        vm.OpenDetailsCommand.Execute(vm.SelectedProject);
+        Assert.True(vm.IsDetailOpen);
+        pending.SetResult(new(1, 0, false, [])); await install;
+        Assert.False(vm.IsInstalling); Assert.False(installToken.IsCancellationRequested);
+        Assert.True(vm.HasInstallActivity);
+        await vm.StopAsync();
+    }
+
     /// <summary>安装结果按真实成功、部分失败、全部失败或取消分类，一次安装只报告一次。</summary>
     [Theory]
     [InlineData(1, false, false, OperationNoticeKind.Success)]

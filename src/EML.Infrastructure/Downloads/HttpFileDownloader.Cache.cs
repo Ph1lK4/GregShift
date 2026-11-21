@@ -41,8 +41,11 @@ public sealed partial class HttpFileDownloader
             {
                 try
                 {
-                    return await PublishCachedAsync(paths.Blob, destination, expectedSize, maximumBytes, hashes,
+                    var result = await PublishCachedAsync(paths.Blob, destination, expectedSize, maximumBytes, hashes,
                         progress, 0, true, 0, token).ConfigureAwait(false);
+                    try { File.SetLastWriteTimeUtc(paths.Blob, DateTime.UtcNow); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                    return result;
                 }
                 catch (InvalidDataException)
                 {
@@ -96,12 +99,11 @@ public sealed partial class HttpFileDownloader
                 token.ThrowIfCancellationRequested();
                 EnsureDestinationAvailable(destination);
                 using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
-                deadline.CancelAfter(_options.AttemptTimeout);
                 long? completedResume = null;
                 try
                 {
                     completedResume = await FillCacheAttemptAsync(paths, url, expectedSize, maximumBytes, hashes,
-                        progress, ++attemptNumber, deadline.Token, deadline).ConfigureAwait(false);
+                        progress, ++attemptNumber, deadline.Token, deadline, token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException ex) when (!token.IsCancellationRequested && deadline.IsCancellationRequested)
                 { lastFailure = new TimeoutException("本次下载超时。", ex); }
@@ -125,7 +127,7 @@ public sealed partial class HttpFileDownloader
     /// <summary>强 ETag 与来源指纹一致才发送 Range；200、416 或实体变更都从头重建片段。</summary>
     private async Task<long> FillCacheAttemptAsync(CachePaths paths, Uri url, long? expectedSize, long maximumBytes,
         IReadOnlyList<HashExpectation> hashes, IProgress<FileDownloadProgress>? progress, int attempt, CancellationToken token,
-        CancellationTokenSource deadline)
+        CancellationTokenSource deadline, CancellationToken callerToken)
     {
         var authentication = new DownloadAuthenticationState();
         try
@@ -137,7 +139,7 @@ public sealed partial class HttpFileDownloader
             {
                 try
                 {
-                    await VerifyCacheFileAsync(paths.Part, expectedSize, maximumBytes, hashes, progress, attempt, offset, token).ConfigureAwait(false);
+                    await VerifyCacheFileAsync(paths.Part, expectedSize, maximumBytes, hashes, progress, attempt, offset, callerToken).ConfigureAwait(false);
                     PromoteCache(paths);
                     return offset;
                 }
@@ -147,8 +149,8 @@ public sealed partial class HttpFileDownloader
             for (var reset = 0; reset < 2; reset++)
             {
                 token.ThrowIfCancellationRequested();
-                using var response = await SendAsync(url, authentication, token, offset > 0 ? offset : null,
-                    metadata?.EntityTag, allowRange: true).ConfigureAwait(false);
+                using var response = await AwaitCacheNetworkAsync(() => SendAsync(url, authentication, token,
+                    offset > 0 ? offset : null, metadata?.EntityTag, allowRange: true), deadline).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
                 {
                     ResetPartial(paths); metadata = null; offset = 0;
@@ -195,9 +197,9 @@ public sealed partial class HttpFileDownloader
                 else DeleteCacheFile(paths.Metadata);
                 var resumedBytes = offset;
                 await ReceiveCachedBodyAsync(paths.Part, response, offset, total, maximumBytes, advertised,
-                    progress, attempt, resumedBytes, token, deadline).ConfigureAwait(false);
+                    progress, attempt, resumedBytes, token, deadline, callerToken).ConfigureAwait(false);
                 await VerifyCacheFileAsync(paths.Part, expectedSize ?? total, maximumBytes, hashes,
-                    progress, attempt, resumedBytes, token).ConfigureAwait(false);
+                    progress, attempt, resumedBytes, callerToken).ConfigureAwait(false);
                 PromoteCache(paths);
                 return resumedBytes;
             }
@@ -216,14 +218,14 @@ public sealed partial class HttpFileDownloader
     /// <summary>顺序追加网络内容并应用共享带宽限制，取消时已落盘字节可供下一次请求续传。</summary>
     private async Task ReceiveCachedBodyAsync(string path, HttpResponseMessage response, long offset, long? total,
         long maximumBytes, long? advertised, IProgress<FileDownloadProgress>? progress, int attempt, long resumedBytes,
-        CancellationToken token, CancellationTokenSource deadline)
+        CancellationToken token, CancellationTokenSource deadline, CancellationToken callerToken)
     {
         EnsureNoLinks(path);
         await using var output = new FileStream(path, offset == 0 ? FileMode.CreateNew : FileMode.Open,
             FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
         if (output.Length != offset) throw new InvalidDataException("续传片段在请求期间发生变化。");
         output.Position = offset;
-        await using var input = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
+        await using var input = await AwaitCacheNetworkAsync(() => response.Content.ReadAsStreamAsync(token), deadline).ConfigureAwait(false);
         var buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
         long received = offset;
         try
@@ -232,9 +234,10 @@ public sealed partial class HttpFileDownloader
             var lastProgress = Stopwatch.GetTimestamp();
             while (true)
             {
-                var count = await input.ReadAsync(buffer.AsMemory(), token).ConfigureAwait(false);
+                var count = await AwaitCacheNetworkAsync(() => input.ReadAsync(buffer.AsMemory(), token).AsTask(), deadline).ConfigureAwait(false);
                 if (count == 0) break;
-                await ThrottleAsync(count, deadline, token).ConfigureAwait(false);
+                if (_bandwidthLimiter is not null)
+                    await _bandwidthLimiter.WaitAsync(count, callerToken).ConfigureAwait(false);
                 received = checked(received + count);
                 if (received > maximumBytes || total.HasValue && received > total ||
                     advertised.HasValue && received - offset > advertised)
@@ -247,11 +250,19 @@ public sealed partial class HttpFileDownloader
                 }
             }
             progress?.Report(new(received, total, attempt) { ResumedBytes = resumedBytes });
-            await output.FlushAsync(token).ConfigureAwait(false);
+            await output.FlushAsync(callerToken).ConfigureAwait(false);
             if (total.HasValue && received != total || advertised.HasValue && received - offset != advertised)
                 throw new HttpRequestException("下载连接结束时文件尚未完整，稍后可继续下载。");
         }
         finally { ArrayPool<byte>.Shared.Return(buffer); }
+    }
+
+    /// <summary>网络响应与每次读取受超时限制；缓存元数据、限速、磁盘 I/O 和摘要不计入网络等待。</summary>
+    private async Task<T> AwaitCacheNetworkAsync<T>(Func<Task<T>> operation, CancellationTokenSource deadline)
+    {
+        deadline.CancelAfter(_options.AttemptTimeout);
+        try { return await operation().ConfigureAwait(false); }
+        finally { deadline.CancelAfter(Timeout.InfiniteTimeSpan); }
     }
 
     /// <summary>复制时同时校验缓存全部字节，最终以禁止覆盖的重命名发布目标文件。</summary>

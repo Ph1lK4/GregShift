@@ -13,7 +13,8 @@ internal static class GtnhAddonCatalog
         Github("worldedit", "WorldEdit · 建筑编辑", "复制、粘贴与编辑建筑，适合测试世界和建造。", "功能增强",
             "GTNewHorizons/worldedit-gtnh", "多人游戏需要服务端支持及相应权限；客户端安装不能获得服务器编辑权限。"),
         Github("ae2-auto-pattern-upload", "AE2 自动样板上传", "辅助 AE2 样板上传操作。", "功能增强",
-            "NOOB2RUSH/AE2-Auto-Pattern-Upload_2.9.0", "此仓库明确带有 2.9.0 标识，请核对目标 GTNH 版本，不向旧版自动套用。"),
+            "NOOB2RUSH/AE2-Auto-Pattern-Upload_2.9.0", "此仓库明确带有 2.9.0 标识，不向其他版本自动套用。")
+            with { RequiredGtnhVersion = "2.9.0" },
         Github("nech", "拼音搜索 · Never Enough Characters Rework", "在 NEI 中通过拼音查找物品。", "功能增强",
             "asdflj/NeverEnoughCharacters-Rework", "核对已有拼音搜索模组，避免重复安装旧版；此功能不等于完整汉化。"),
         Github("mouse-side-button", "鼠标侧键修复 · MouseSideButtonFix", "改善终端快捷键使用鼠标侧键时的操作。", "功能增强",

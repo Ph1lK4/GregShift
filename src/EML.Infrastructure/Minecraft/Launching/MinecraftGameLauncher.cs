@@ -16,6 +16,8 @@ namespace EML.Infrastructure.Minecraft.Launching;
 public sealed class MinecraftGameLauncher : IMinecraftGameLauncher
 {
     private const int OutputFragmentLength = 8192;
+    private const long MaximumLaunchLogBytes = 32L * 1024 * 1024;
+    private const int PreviousLaunchLogsToKeep = 9;
     private readonly string _launcherRoot;
     private readonly MinecraftLaunchPlanner _planner;
     private readonly IMinecraftLaunchIdentityStore _identityStore;
@@ -71,6 +73,7 @@ public sealed class MinecraftGameLauncher : IMinecraftGameLauncher
         var logDirectory = InstanceImportPaths.Within(root, ".eml-runtime/launch/logs");
         InstanceImportPaths.EnsureNoLinks(logDirectory);
         Directory.CreateDirectory(logDirectory);
+        TrimLaunchLogs(logDirectory);
         var logPath = Path.Combine(logDirectory, Guid.NewGuid().ToString("N") + ".log");
         string? argumentFile = null;
         using var process = new Process();
@@ -312,16 +315,31 @@ public sealed class MinecraftGameLauncher : IMinecraftGameLauncher
 
     /// <summary>串行写日志并通知界面；日志或界面失败不影响双管道消费和进程退出处理。</summary>
     internal static async Task PumpOutputAsync(ChannelReader<MinecraftLaunchProgress> source, TextWriter log,
-        IProgress<MinecraftLaunchProgress>? progress, string logPath)
+        IProgress<MinecraftLaunchProgress>? progress, string logPath, long maximumBytes = MaximumLaunchLogBytes)
     {
         var writable = true;
+        const string limitNotice = "EML 启动日志已达到大小上限；后续输出仍会处理，但不再写入本文件。";
+        var noticeBytes = log.Encoding.GetByteCount(limitNotice + log.NewLine);
+        long written = 0;
         await foreach (var item in source.ReadAllAsync().ConfigureAwait(false))
         {
             if (writable)
             {
                 try
                 {
-                    await log.WriteLineAsync((item.StandardError ? "[stderr] " : "[stdout] ") + item.Message).ConfigureAwait(false);
+                    var line = (item.StandardError ? "[stderr] " : "[stdout] ") + item.Message;
+                    var bytes = (long)log.Encoding.GetByteCount(line) + log.Encoding.GetByteCount(log.NewLine);
+                    if (written + bytes + noticeBytes <= maximumBytes)
+                    {
+                        await log.WriteLineAsync(line).ConfigureAwait(false);
+                        written += bytes;
+                    }
+                    else
+                    {
+                        if (written + noticeBytes <= maximumBytes) await log.WriteLineAsync(limitNotice).ConfigureAwait(false);
+                        writable = false;
+                        Report(progress, new(MinecraftLaunchStage.Output, limitNotice, false, logPath));
+                    }
                     await log.FlushAsync().ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException)
@@ -332,6 +350,28 @@ public sealed class MinecraftGameLauncher : IMinecraftGameLauncher
             }
             Report(progress, item with { LogPath = logPath });
         }
+    }
+
+    /// <summary>只轮转 EML 自己命名的启动日志，从不处理游戏的 logs 目录或任意文件。</summary>
+    private static void TrimLaunchLogs(string directory)
+    {
+        try
+        {
+            var options = new EnumerationOptions { AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System };
+            var older = new DirectoryInfo(directory).EnumerateFiles("*.log", options)
+                .Where(file => file.Extension.Equals(".log", StringComparison.OrdinalIgnoreCase) &&
+                    Guid.TryParseExact(Path.GetFileNameWithoutExtension(file.Name), "N", out _))
+                .OrderByDescending(file => file.LastWriteTimeUtc).ThenByDescending(file => file.Name, StringComparer.Ordinal)
+                .Skip(PreviousLaunchLogsToKeep).ToArray();
+            foreach (var file in older)
+            {
+                try { InstanceImportPaths.EnsureNoLinks(file.FullName); file.Delete(); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                { Trace.TraceWarning("无法轮转 EML 启动日志：{0}", ex.Message); }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        { Trace.TraceWarning("无法枚举 EML 启动日志：{0}", ex.Message); }
     }
 
     /// <summary>只停止本次创建的进程及其子树；失败时明确报告，不按进程名终止其他 Java。</summary>

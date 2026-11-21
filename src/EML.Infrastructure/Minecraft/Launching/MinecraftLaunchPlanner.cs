@@ -30,7 +30,8 @@ public sealed partial class MinecraftLaunchPlanner
     /// <summary>只处理直接子实例；保留 checker 参数兼容旧调用方，启动不再调用完整检查器。</summary>
     public MinecraftLaunchPlanner(string launcherRoot, IMinecraftInstanceChecker? checker = null, IJavaLocator? javaLocator = null,
         IMinecraftAccountService? accounts = null)
-        : this(launcherRoot, new InstanceRuntimeResolver(), javaLocator ?? new WindowsJavaLocator(), ProbeJavaAsync, accounts) { }
+        : this(launcherRoot, new InstanceRuntimeResolver(), javaLocator ?? new WindowsJavaLocator(launcherRoot,
+            Path.Combine(launcherRoot, "runtimes", "java")), ProbeJavaAsync, accounts) { }
 
     /// <summary>测试注入 Java 版本查询，不运行玩家的 Java 或游戏进程。</summary>
     internal MinecraftLaunchPlanner(string launcherRoot, IPrismRuntimeResolver resolver, IJavaLocator javaLocator,
@@ -253,6 +254,7 @@ public sealed partial class MinecraftLaunchPlanner
             foreach (var candidate in candidates.Where(Compatible).OrderByDescending(item => MajorVersion(item.Version)))
             {
                 token.ThrowIfCancellationRequested();
+                if (_javaLocator is WindowsJavaLocator locator && !locator.CanProbeAutomatically(candidate.ExecutablePath)) continue;
                 try
                 {
                     var current = await _probe(candidate.ExecutablePath, token).ConfigureAwait(false);
@@ -273,9 +275,11 @@ public sealed partial class MinecraftLaunchPlanner
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(TimeSpan.FromSeconds(15));
         using var process = new Process { StartInfo = new(path) { UseShellExecute = false, CreateNoWindow = true,
-            RedirectStandardOutput = true, RedirectStandardError = true } };
+            WorkingDirectory = Path.GetDirectoryName(path)!, RedirectStandardOutput = true, RedirectStandardError = true } };
         process.StartInfo.ArgumentList.Add("-XshowSettings:properties");
         process.StartInfo.ArgumentList.Add("-version");
+        foreach (var name in new[] { "JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JDK_JAVA_OPTIONS" })
+            process.StartInfo.Environment.Remove(name);
         try
         {
             if (!process.Start()) throw new IOException("无法查询 Java。");

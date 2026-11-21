@@ -95,7 +95,7 @@
       <WrapPanel Margin="0,8,0,16"><Button Content="作者主页 ↗" Command="{Binding OpenAddonWebsiteCommand}" Style="{StaticResource QuietButton}"/><Button Content="刷新发行版本" Command="{Binding RefreshReleasesCommand}" Style="{StaticResource QuietButton}"/></WrapPanel>
       <Border Background="{DynamicResource InfoSoftBrush}" CornerRadius="9" Padding="12">
        <StackPanel><TextBlock Text="安装前看这里" FontWeight="SemiBold" Margin="0,0,0,6"/>
-        <TextBlock Text="{Binding SelectedAddon.Notes, TargetNullValue=这里收录专门适配 GTNH 的项目。请先选择目标实例，再核对作者的版本说明。}" TextWrapping="Wrap"/>
+        <TextBlock Text="{Binding SelectedAddon.Notes, TargetNullValue=收录不代表兼容性已验证。请先选择目标实例，再核对作者的版本说明。}" TextWrapping="Wrap"/>
        </StackPanel>
       </Border>
       <Border CornerRadius="9" Padding="12" Margin="0,10,0,0" BorderThickness="1" BorderBrush="{DynamicResource DangerBrush}" Visibility="{Binding IsNonStargateAddon, Converter={StaticResource VisibleWhenTrue}}">
@@ -107,6 +107,7 @@
       <TextBlock Text="发行版本" FontWeight="SemiBold" Margin="0,18,0,8"/>
       <ComboBox ItemsSource="{Binding Releases}" SelectedItem="{Binding SelectedRelease}" DisplayMemberPath="DisplayName" IsEnabled="{Binding CanInteract}" MaxDropDownHeight="260" AutomationProperties.Name="GTNH 模组发行版本"/>
       <TextBlock Text="{Binding ReleaseStatus}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,10"/>
+      <TextBlock Text="{Binding SelectedRelease.CompatibilitySummary}" TextWrapping="Wrap" Margin="0,0,0,8"/>
       <TextBlock Text="{Binding SelectedRelease.Problem}" Foreground="{DynamicResource DangerBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
       <Expander Header="发行说明与文件信息" Margin="0,0,0,12">
        <StackPanel Margin="0,8,0,0">

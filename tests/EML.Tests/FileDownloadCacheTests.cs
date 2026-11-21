@@ -266,6 +266,26 @@ public sealed class FileDownloadCacheTests
         }
     }
 
+    [Fact]
+    public async Task CompletedNetworkTransferDoesNotTimeOutDuringLocalVerification()
+    {
+        using var folder = new Folder();
+        using var handler = new Handler((_, _) => Response(Payload));
+        using var downloader = new HttpFileDownloader(handler, folder.Options with { AttemptTimeout = TimeSpan.FromMilliseconds(750) });
+        var delayed = false;
+        var progress = new ProgressSink(value =>
+        {
+            if (value.Phase != FileDownloadPhase.Verifying || delayed) return;
+            delayed = true;
+            Thread.Sleep(1000);
+        });
+
+        var result = await downloader.DownloadAsync(folder.Request("local-verification"), progress);
+
+        Assert.True(delayed);
+        Assert.Equal(Payload, await File.ReadAllBytesAsync(result.DestinationPath));
+    }
+
     /// <summary>完成通知抛异常不会将已经发布成功的文件报告为失败或再次下载。</summary>
     [Theory]
     [InlineData(true)]

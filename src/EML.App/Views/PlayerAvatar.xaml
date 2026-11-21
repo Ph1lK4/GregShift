@@ -1,0 +1,10 @@
+<UserControl x:Class="EML.App.Views.PlayerAvatar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="False" IsTabStop="False"
+             IsHitTestVisible="False" AutomationProperties.Name="玩家皮肤头像">
+  <Border Background="{DynamicResource RaisedSurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
+          BorderThickness="1" CornerRadius="6" Padding="3">
+    <Image x:Name="HeadImage" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+  </Border>
+</UserControl>

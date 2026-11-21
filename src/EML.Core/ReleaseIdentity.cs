@@ -15,5 +15,5 @@ public static class ReleaseIdentity
         .FirstOrDefault(attribute => attribute.Key == "EMLDisplayVersion")?.Value ?? Version;
 
     /// <summary>标题中标明测试版身份，便于用户反馈问题时核对所运行的版本。</summary>
-    public static string WindowTitle => $"EML {DisplayVersion} · 我的世界启动器";
+    public static string WindowTitle => $"GregShift {DisplayVersion} · 我的世界启动器";
 }

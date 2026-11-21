@@ -210,7 +210,7 @@ public partial class InstancesViewModel : ObservableObject
             await _manager.ExportAsync(instance.InstancePath, path, progress, token);
             TransferPercent = 100;
             TransferStatus = "导出完成";
-            StatusText = $"已导出：{path}。仅包含实例内文件，不包含外部共享依赖。";
+            StatusText = $"已导出：{path}。完整备份可能包含个人数据，请勿直接公开分享；不包含外部共享依赖。";
             _notifications.Success("实例导出完成", StatusText, path, instance.InstancePath);
         }
         catch (OperationCanceledException) { TransferStatus = "已取消导出"; StatusText = "未生成目标 ZIP。"; _notifications.Cancelled("导出已取消", StatusText, path, instance.InstancePath); }

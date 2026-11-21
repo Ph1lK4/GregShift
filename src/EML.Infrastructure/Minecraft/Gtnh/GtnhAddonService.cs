@@ -94,12 +94,25 @@ public sealed partial class GtnhAddonService : IGtnhAddonService, IDisposable
         }
         finally { _readLock.Release(); }
         var manifest = InstanceManifestStore.Read(Path.Combine(info.InstancePath, InstanceImportManifest.FileName));
+        releases = releases.Select(release => ApplyCompatibility(addon, release, info.Version)).ToArray();
         var fingerprint = EmbeddedFileBaseline.ManifestFingerprint(manifest);
         foreach (var old in _issued.Where(pair => DateTimeOffset.UtcNow - pair.Value.Time > TimeSpan.FromMinutes(30)).Select(pair => pair.Key))
             _issued.TryRemove(old, out _);
         foreach (var release in releases)
             _issued[Key(info.InstancePath, release)] = new(release, SelectionFingerprint(release), info.Version, fingerprint, DateTimeOffset.UtcNow);
         return releases;
+    }
+
+    internal static GtnhAddonRelease ApplyCompatibility(GtnhAddon addon, GtnhAddonRelease release, string targetVersion)
+    {
+        if (addon.RequiredGtnhVersion is not { } required)
+            return release with { CompatibilitySummary = $"目标是 GTNH {targetVersion}；此发行未经过 EML 兼容验证。请核对作者原文、前置依赖和服务端要求。" };
+        if (!string.Equals(targetVersion, required, StringComparison.OrdinalIgnoreCase))
+        {
+            var issue = $"此项目仅收录 GTNH {required} 适配版本，不能直接安装到 GTNH {targetVersion}。";
+            return release with { CompatibilitySummary = issue, Problem = release.Problem is { } previous ? previous + "\n" + issue : issue };
+        }
+        return release with { CompatibilitySummary = $"目标符合项目标注的 GTNH {required}。仍未经过 EML 实测；请核对发行说明、前置及客户端／服务端要求。" };
     }
 
     /// <summary>只安装此前展示且未改变的固定资产；下载到独立暂存区，双重校验成功后才交给管理器。</summary>

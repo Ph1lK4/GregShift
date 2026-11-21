@@ -8,6 +8,141 @@ namespace EML.Tests;
 /// <summary>使用受控目录与安装委托测试下载页面，不访问网络、文件系统或真实实例。</summary>
 public sealed class InstanceDownloadsViewModelTests
 {
+    /// <summary>仅显式打开命令进入详情，返回后保留筛选、结果、精确版本及平台正文。</summary>
+    [Fact]
+    public async Task DetailNavigationPreservesResultsAndExactRelease()
+    {
+        await using var fixture = new Fixture();
+        var model = fixture.ViewModel;
+        model.SearchText = "GTNH";
+        await ActivateAndSelectAsync(model);
+        await Task.WhenAll(model.VersionsTask, model.DetailsTask);
+        Assert.False(model.IsDetailOpen);
+        var row = model.SelectedProject;
+        var release = model.SelectedRelease;
+        var searchCount = fixture.Catalog.Searches.Count;
+        var versionCount = fixture.Catalog.Versions.Count;
+        var detailCount = fixture.Catalog.DetailsCalls.Count;
+        model.OpenDetailsCommand.Execute(row);
+        Assert.True(model.IsDetailOpen);
+        model.BackToResultsCommand.Execute(null);
+        Assert.False(model.IsDetailOpen);
+        Assert.Same(row, model.SelectedProject);
+        Assert.Same(release, model.SelectedRelease);
+        Assert.Equal("GTNH", model.SearchText);
+        Assert.Same(row, Assert.Single(model.Projects));
+        model.OpenDetailsCommand.Execute(row);
+        Assert.True(model.IsDetailOpen);
+        Assert.Equal(searchCount, fixture.Catalog.Searches.Count);
+        Assert.Equal(versionCount, fixture.Catalog.Versions.Count);
+        Assert.Equal(detailCount, fixture.Catalog.DetailsCalls.Count);
+    }
+
+    /// <summary>同项目版本或介绍失败后重新打开可重试，正在读取时不会重复发起请求。</summary>
+    [Fact]
+    public async Task ReopeningProjectRetriesUnavailableDetailsWithoutDuplicatingPendingReads()
+    {
+        await using var fixture = new Fixture();
+        fixture.Catalog.VersionList = (_, _) => Task.FromException<InstanceVersionPage>(new IOException("版本暂时不可达"));
+        fixture.Catalog.Details = (_, _) => Task.FromException<InstanceCatalogProject>(new IOException("介绍暂时不可达"));
+        var model = fixture.ViewModel;
+        await ActivateAndSelectAsync(model);
+        await Task.WhenAll(model.VersionsTask, model.DetailsTask);
+        var versions = Signal<InstanceVersionPage>();
+        var details = Signal<InstanceCatalogProject>();
+        fixture.Catalog.VersionList = (_, _) => versions.Task;
+        fixture.Catalog.Details = (_, _) => details.Task;
+        model.OpenDetailsCommand.Execute(model.SelectedProject);
+        model.BackToResultsCommand.Execute(null);
+        model.OpenDetailsCommand.Execute(model.SelectedProject);
+        try
+        {
+            Assert.Equal(2, fixture.Catalog.Versions.Count);
+            Assert.Equal(2, fixture.Catalog.DetailsCalls.Count);
+            versions.SetResult(new([Release(model.SelectedProject!.Project)], 1, false));
+            details.SetResult(model.SelectedProject.Project with { Description = "恢复的介绍" });
+            await Task.WhenAll(model.VersionsTask, model.DetailsTask);
+            Assert.NotNull(model.SelectedRelease);
+            Assert.Equal("恢复的介绍", model.ProjectDescription);
+        }
+        finally
+        {
+            versions.TrySetResult(new([], 0, false));
+            details.TrySetResult(model.SelectedProject!.Project);
+        }
+    }
+
+    /// <summary>后台介绍迟到只补齐当前数据，不把已返回的列表强制切回详情。</summary>
+    [Fact]
+    public async Task LateDescriptionDoesNotReopenDetailPage()
+    {
+        await using var fixture = new Fixture();
+        var pending = Signal<InstanceCatalogProject>();
+        fixture.Catalog.Details = (_, _) => pending.Task;
+        var model = fixture.ViewModel;
+        await ActivateAndSelectAsync(model);
+        var detailTask = model.DetailsTask;
+        model.OpenDetailsCommand.Execute(model.SelectedProject);
+        model.BackToResultsCommand.Execute(null);
+        pending.SetResult(Project(InstanceCatalogProvider.Modrinth) with { Description = "后台完成的介绍" });
+        await detailTask;
+        Assert.False(model.IsDetailOpen);
+        Assert.Equal("后台完成的介绍", model.ProjectDescription);
+    }
+
+    /// <summary>筛选改变后旧详情关闭，不能沿用之前的固定下载版本。</summary>
+    [Theory]
+    [InlineData("query")]
+    [InlineData("version")]
+    [InlineData("loader")]
+    [InlineData("sort")]
+    [InlineData("snapshot")]
+    public async Task FilterChangesCloseDetailPage(string filter)
+    {
+        await using var fixture = new Fixture();
+        var model = fixture.ViewModel;
+        await ActivateAndSelectAsync(model);
+        model.OpenDetailsCommand.Execute(model.SelectedProject);
+        Assert.True(model.IsDetailOpen);
+        ChangeFilter(model, filter);
+        Assert.False(model.IsDetailOpen);
+        Assert.Null(model.SelectedProject);
+        Assert.Null(model.SelectedRelease);
+    }
+
+    /// <summary>安装中返回结果不取消任务，仍可重开同一项目，不允许改成其他项目。</summary>
+    [Fact]
+    public async Task ReturningToResultsDoesNotCancelConfirmedInstallation()
+    {
+        await using var fixture = new Fixture();
+        var pending = Signal<string>();
+        fixture.Install = (_, _, _) => pending.Task;
+        var model = fixture.ViewModel;
+        await ActivateAndSelectAsync(model);
+        await Task.WhenAll(model.VersionsTask, model.DetailsTask);
+        var row = model.SelectedProject;
+        var release = model.SelectedRelease;
+        model.OpenDetailsCommand.Execute(row);
+        var installation = model.InstallCommand.ExecuteAsync(null);
+        try
+        {
+            Assert.True(model.IsInstalling);
+            model.BackToResultsCommand.Execute(null);
+            Assert.False(model.IsDetailOpen);
+            Assert.False(fixture.InstallToken.IsCancellationRequested);
+            Assert.Same(release, model.SelectedRelease);
+            Assert.True(model.OpenDetailsCommand.CanExecute(row));
+            Assert.False(model.OpenDetailsCommand.CanExecute(new InstanceDownloadRow(Project(InstanceCatalogProvider.Modrinth, "other"))));
+            model.OpenDetailsCommand.Execute(row);
+            Assert.True(model.IsDetailOpen);
+            Assert.Single(fixture.Catalog.Searches);
+            pending.SetResult("实例已创建。");
+            await installation;
+            Assert.Equal("实例已创建。", model.InstallStatus);
+        }
+        finally { pending.TrySetResult("已结束。"); await installation; }
+    }
+
     /// <summary>自动打开目录不弹成功提示；用户显式搜索只报告一次查询结果。</summary>
     [Fact]
     public async Task ExplicitSearchNotifiesWithoutDuplicatingAutomaticLoads()

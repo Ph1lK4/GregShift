@@ -20,6 +20,24 @@ namespace EML.Tests;
 /// <summary>用临时 GTNH 实例和可控 GitHub 响应测试真实下载、完整性与管理链，不访问玩家数据。</summary>
 public sealed partial class GtnhAddonServiceTests : IDisposable
 {
+    [Theory]
+    [InlineData("2.8.4", false)]
+    [InlineData("2.9.0", true)]
+    [InlineData("2.9.0-beta-1", false)]
+    public void ExplicitPackVersionRestrictionIsAppliedPerTarget(string target, bool matches)
+    {
+        var addon = GtnhAddonCatalog.Items.Single(item => item.Id == "ae2-auto-pattern-upload");
+        var release = new GtnhAddonRelease
+        {
+            AddonId = addon.Id, Repository = addon.Repository, Tag = "example", FileName = "test.jar",
+            DownloadUrl = "https://example.invalid/test.jar", ReleaseUrl = "https://example.invalid",
+            Size = 100, Sha256 = new string('a', 64)
+        };
+        var result = GtnhAddonService.ApplyCompatibility(addon, release, target);
+        Assert.Equal(matches, result.CanInstall);
+        Assert.Contains("2.9.0", result.CompatibilitySummary);
+        Assert.Null(release.Problem); // 目标专属结论不能污染共享发行缓存。
+    }
     private readonly string _root = Path.Combine(Path.GetTempPath(), "eml-gtnh-addon-" + Guid.NewGuid().ToString("N"));
     private readonly byte[] _bytes = ModBytes();
     private string Instance => Path.Combine(_root, "instances", "GTNH");

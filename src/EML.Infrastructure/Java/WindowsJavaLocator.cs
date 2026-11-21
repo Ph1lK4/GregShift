@@ -5,6 +5,7 @@ using System.Runtime.Versioning;
 using System.Security;
 using System.Text.RegularExpressions;
 using EML.Core.Java;
+using EML.Infrastructure.Minecraft.Importing;
 using Microsoft.Win32;
 
 namespace EML.Infrastructure.Java;
@@ -12,17 +13,20 @@ namespace EML.Infrastructure.Java;
 /// <summary>发现 Windows 已安装和常见位置中的 Java；不扫描整块硬盘。</summary>
 public sealed class WindowsJavaLocator : IJavaLocator
 {
-    private readonly string[] _additionalSearchRoots;
+    private readonly string? _launcherRoot;
+    private readonly string? _managedRuntimeRoot;
+    private static readonly string[] JavaVendorDirectories = ["Java", "Eclipse Adoptium", "AdoptOpenJDK", "Microsoft", "Amazon Corretto", "Zulu", "BellSoft", "Semeru"];
     private static readonly StringComparer PathComparer = StringComparer.OrdinalIgnoreCase;
     private IReadOnlyList<JavaInstallation>? _lastKnownInstallations;
 
     /// <summary>提供上次已完成的不可变检测快照，启动模块仍需实时查询选中的 Java。</summary>
     internal IReadOnlyList<JavaInstallation>? LastKnownInstallations => Volatile.Read(ref _lastKnownInstallations);
 
-    /// <summary>保存可选的额外搜索目录；不传参数时使用默认发现规则。</summary>
-    public WindowsJavaLocator(IEnumerable<string>? additionalSearchRoots = null)
+    /// <summary>启动器数据目录不是搜索根，仅允许其中已发布的 EML Java。</summary>
+    public WindowsJavaLocator(string? launcherRoot = null, string? managedRuntimeRoot = null)
     {
-        _additionalSearchRoots = additionalSearchRoots?.ToArray() ?? [];
+        _launcherRoot = Normalize(launcherRoot ?? AppContext.BaseDirectory);
+        _managedRuntimeRoot = Normalize(managedRuntimeRoot);
     }
 
     /// <summary>后台发现并验证 Java，去重后按主版本降序返回；最多同时验证四项。</summary>
@@ -47,8 +51,9 @@ public sealed class WindowsJavaLocator : IJavaLocator
             CancellationToken = cancellationToken
         }, async (path, token) =>
         {
+            if (!CanProbeAutomatically(path)) return;
             var installation = await InspectAsync(path, token);
-            if (installation is not null)
+            if (installation is not null && CanProbeAutomatically(installation.ExecutablePath))
                 found.TryAdd(installation.ExecutablePath, installation);
         });
 
@@ -75,36 +80,32 @@ public sealed class WindowsJavaLocator : IJavaLocator
                 roots[normalized] = Math.Max(roots.GetValueOrDefault(normalized), depth);
         }
 
+        void AddJavaHome(string? path)
+        {
+            if (Normalize(path) is { } home) AddExecutable(Path.Combine(home, "bin"), executables);
+        }
+
         foreach (var target in new[] { EnvironmentVariableTarget.Process,
                      EnvironmentVariableTarget.User, EnvironmentVariableTarget.Machine })
         {
             foreach (var name in new[] { "JAVA_HOME", "JDK_HOME", "JRE_HOME" })
-                AddRoot(Environment.GetEnvironmentVariable(name, target), 3);
+                AddJavaHome(Environment.GetEnvironmentVariable(name, target));
 
             foreach (var path in (Environment.GetEnvironmentVariable("PATH", target) ?? "")
                          .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
                 AddExecutable(path, executables);
         }
 
-        // JavaSoft 注册信息 + 已安装程序登记的 InstallLocation；支持不同盘符。
+        // 采用 Java 专用登记，不递归进入其他应用或用户数据目录。
         foreach (var path in RegistryLocations(token))
-            AddRoot(path, 4);
-
-        foreach (var path in _additionalSearchRoots)
-            AddRoot(path, 6);
-
-        // Windows 提供实际目录；不写死用户名、盘符或 Java 发行商名称。
-        AddRoot(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), 4);
-        AddRoot(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), 4);
-        AddRoot(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), 5);
-        AddRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), 5);
-        AddRoot(AppContext.BaseDirectory, 5);
-        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (!string.IsNullOrWhiteSpace(userProfile))
+            AddJavaHome(path);
+        foreach (var location in new[] { Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 })
         {
-            foreach (var name in new[] { ".jdks", ".jvm", ".jabba", ".sdkman" })
-                AddRoot(Path.Combine(userProfile, name), 5);
+            var directory = Environment.GetFolderPath(location);
+            if (directory.Length == 0) continue;
+            foreach (var vendor in JavaVendorDirectories) AddRoot(Path.Combine(directory, vendor), 3);
         }
+        AddRoot(_managedRuntimeRoot, 2);
 
         foreach (var (path, depth) in roots)
         {
@@ -112,6 +113,32 @@ public sealed class WindowsJavaLocator : IJavaLocator
             ScanRoot(path, depth, executables, token);
         }
         return executables.OrderBy(path => path, PathComparer).ToArray();
+    }
+
+    /// <summary>同样检查 PATH 直达项及启动时从旧检测快照取出的候选项。</summary>
+    internal bool CanProbeAutomatically(string path)
+    {
+        if (Normalize(path) is not { } executable || !File.Exists(executable) ||
+            IsManagedInstallationStagingPath(executable)) return false;
+        if (_managedRuntimeRoot is not null && IsWithin(executable, _managedRuntimeRoot))
+        {
+            var parts = Path.GetRelativePath(_managedRuntimeRoot, executable).Split(Path.DirectorySeparatorChar);
+            if (parts.Length != 3 || !PathComparer.Equals(parts[1], "bin") ||
+                !PathComparer.Equals(parts[2], "java.exe")) return false;
+            if (!HasNoLinks(executable) || !TemurinJavaRuntimeService.HasMatchingExecutableReceipt(executable, parts[0])) return false;
+        }
+        else if (_launcherRoot is not null && IsWithin(executable, _launcherRoot)) return false;
+        return HasNoLinks(executable);
+    }
+
+    private static bool IsWithin(string path, string root) => PathComparer.Equals(path, root) ||
+        path.StartsWith(Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar,
+            StringComparison.OrdinalIgnoreCase);
+
+    private static bool HasNoLinks(string path)
+    {
+        try { InstanceImportPaths.EnsureNoLinks(path); return true; }
+        catch (Exception ex) when (IsExpected(ex)) { return false; }
     }
 
     /// <summary>按深度和时间限制搜索目录，跳过无法访问的位置及链接子目录。</summary>
@@ -176,7 +203,7 @@ public sealed class WindowsJavaLocator : IJavaLocator
         return false;
     }
 
-    /// <summary>从用户和系统的 32/64 位注册表收集 JavaHome 与软件安装目录。</summary>
+    /// <summary>从用户和系统的 32/64 位注册表收集 JavaHome。</summary>
     [SupportedOSPlatform("windows")]
     private static IReadOnlyList<string> RegistryLocations(CancellationToken token)
     {
@@ -190,20 +217,6 @@ public sealed class WindowsJavaLocator : IJavaLocator
                 using var root = RegistryKey.OpenBaseKey(hive, view);
                 using var javaSoft = root.OpenSubKey(@"SOFTWARE\JavaSoft");
                 if (javaSoft is not null) ReadJavaKeys(javaSoft, 4, locations, token);
-                using var uninstall = root.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall");
-                if (uninstall is null) continue;
-                foreach (var name in uninstall.GetSubKeyNames())
-                {
-                    token.ThrowIfCancellationRequested();
-                    try
-                    {
-                        using var item = uninstall.OpenSubKey(name);
-                        // 不依赖发行商名字；查找已登记软件中的 Java 可执行文件。
-                        if (item?.GetValue("InstallLocation") is string location &&
-                            !string.IsNullOrWhiteSpace(location)) locations.Add(location);
-                    }
-                    catch (Exception ex) when (IsExpected(ex)) { }
-                }
             }
             catch (Exception ex) when (IsExpected(ex)) { }
         }
@@ -244,6 +257,7 @@ public sealed class WindowsJavaLocator : IJavaLocator
             StartInfo = new ProcessStartInfo
             {
                 FileName = path,
+                WorkingDirectory = Path.GetDirectoryName(path)!,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
@@ -259,8 +273,8 @@ public sealed class WindowsJavaLocator : IJavaLocator
         {
             token.ThrowIfCancellationRequested();
             if (!process.Start()) return null;
-            var stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
-            var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
+            var stdout = ReadProbeOutputAsync(process.StandardOutput, timeout);
+            var stderr = ReadProbeOutputAsync(process.StandardError, timeout);
             // Task.WhenAll 观察两个读取任务和进程退出，避免管道阻塞。
             await Task.WhenAll(stdout, stderr, process.WaitForExitAsync(timeout.Token));
             if (process.ExitCode != 0) return null;
@@ -280,6 +294,23 @@ public sealed class WindowsJavaLocator : IJavaLocator
             try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
             catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException) { }
         }
+    }
+
+    private static async Task<string> ReadProbeOutputAsync(StreamReader reader, CancellationTokenSource timeout)
+    {
+        const int maximumChars = 64 * 1024;
+        var buffer = new char[4096];
+        var text = new System.Text.StringBuilder();
+        while (await reader.ReadAsync(buffer.AsMemory(), timeout.Token).ConfigureAwait(false) is var count && count > 0)
+        {
+            if (text.Length + count > maximumChars)
+            {
+                await timeout.CancelAsync().ConfigureAwait(false);
+                throw new IOException("Java 版本查询输出超过限制。");
+            }
+            text.Append(buffer, 0, count);
+        }
+        return text.ToString();
     }
 
     /// <summary>解析 Java 输出，优先用 java.home 下的入口合并重复检测结果。</summary>

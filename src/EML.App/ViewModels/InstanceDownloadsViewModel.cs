@@ -44,8 +44,9 @@ public sealed partial class InstanceDownloadsViewModel : ObservableObject
     [ObservableProperty] private bool isInstalling;
     [ObservableProperty] private bool hasMore;
     [ObservableProperty] private bool hasMoreVersions;
+    [ObservableProperty] private bool isDetailOpen;
     [ObservableProperty] private string status = "选择来源后搜索整合包或原版版本。";
-    [ObservableProperty] private string versionStatus = "选择左侧项目查看版本。";
+    [ObservableProperty] private string versionStatus = "打开项目详情查看版本。";
     [ObservableProperty] private string descriptionStatus = "选择整合包查看平台介绍。";
     [ObservableProperty] private string installStatus = "下载后确认实例名称，随后自动安装缺失依赖。";
     [ObservableProperty] private string archiveProgress = "";
@@ -61,6 +62,7 @@ public sealed partial class InstanceDownloadsViewModel : ObservableObject
     public bool IsMinecraft => ProviderIndex == 2;
     public bool IsModpack => !IsMinecraft;
     public bool CanBrowse => !_closing && !IsInstalling;
+    public bool HasInstallActivity => IsInstalling || !string.IsNullOrWhiteSpace(ArchiveProgress);
     public string ProjectInformation => SelectedProject is not { } row ? "" :
         row.DisplayName + "\n" + row.DisplaySummary + "\n" + row.Project.Author +
         (row.Project.Provider == InstanceCatalogProvider.Minecraft ? "" : $" · 下载 {row.Project.Downloads:N0} 次");
@@ -76,6 +78,30 @@ public sealed partial class InstanceDownloadsViewModel : ObservableObject
     public Task SearchTask { get; private set; } = Task.CompletedTask;
     public Task VersionsTask { get; private set; } = Task.CompletedTask;
     public Task DetailsTask { get; private set; } = Task.CompletedTask;
+
+    /// <summary>只有用户明确打开项目才进入详情；同一项目重开时保留精确版本和已读介绍。</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenDetails))]
+    private void OpenDetails(InstanceDownloadRow? project)
+    {
+        project ??= SelectedProject;
+        if (!CanOpenDetails(project)) return;
+        var reopening = ReferenceEquals(project, SelectedProject);
+        SelectedProject = project;
+        IsDetailOpen = true;
+        if (reopening && _active && !IsInstalling)
+        {
+            if (Releases.Count == 0 && !IsLoadingVersions) QueueVersions();
+            if (IsModpack && project!.Details is null && !IsLoadingDetails) QueueDetails();
+        }
+    }
+
+    /// <summary>安装期间只能重新查看原项目，不允许通过浏览修改当前下载目标。</summary>
+    private bool CanOpenDetails(InstanceDownloadRow? project) => !_closing && (project ?? SelectedProject) is { } target &&
+        (!IsInstalling || ReferenceEquals(target, SelectedProject));
+
+    /// <summary>返回浏览仅改变页面状态，不取消安装、不重查目录或清空版本选择。</summary>
+    [RelayCommand]
+    private void BackToResults() => IsDetailOpen = false;
 
     /// <summary>只在页面可见时查询目录；离开页面不会停止已经确认的安装。</summary>
     public void SetActive(bool active)
@@ -196,10 +222,11 @@ public sealed partial class InstanceDownloadsViewModel : ObservableObject
     /// <summary>项目切换清空版本列表，并为当前项目安排独立请求。</summary>
     partial void OnSelectedProjectChanged(InstanceDownloadRow? value)
     {
+        if (value is null) IsDetailOpen = false;
         _versionCancellation?.Cancel(); ++_versionRevision; Releases.Clear(); SelectedRelease = null; HasMoreVersions = false;
         _versionCancellation = null; IsLoadingVersions = false;
         _detailsCancellation?.Cancel(); ++_detailsRevision; _detailsCancellation = null; IsLoadingDetails = false;
-        VersionStatus = "选择左侧项目查看版本。";
+        VersionStatus = "打开项目详情查看版本。";
         DescriptionStatus = value?.Details is null ? "选择整合包查看平台介绍。" : DescriptionResultNote(value);
         NotifyProjectDetails();
         if (_active && value is not null && !IsInstalling)
@@ -219,7 +246,12 @@ public sealed partial class InstanceDownloadsViewModel : ObservableObject
     /// <summary>介绍读取期间禁用重复刷新，版本与安装按钮仍按自身状态判断。</summary>
     partial void OnIsLoadingDetailsChanged(bool value) => NotifyCommands();
     /// <summary>安装期间锁定筛选和目标选择，取消入口独立保留。</summary>
-    partial void OnIsInstallingChanged(bool value) { OnPropertyChanged(nameof(CanBrowse)); NotifyCommands(); }
+    partial void OnIsInstallingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanBrowse)); OnPropertyChanged(nameof(HasInstallActivity)); NotifyCommands();
+    }
+    /// <summary>仅已开始的安装显示全局进度，初次浏览不占用结果区空间。</summary>
+    partial void OnArchiveProgressChanged(string value) => OnPropertyChanged(nameof(HasInstallActivity));
     /// <summary>搜索分页标记更新时刷新继续加载权限。</summary>
     partial void OnHasMoreChanged(bool value) => NotifyCommands();
     /// <summary>版本分页标记更新时刷新继续加载权限。</summary>
@@ -392,6 +424,7 @@ public sealed partial class InstanceDownloadsViewModel : ObservableObject
         SearchCommand.NotifyCanExecuteChanged(); LoadMoreCommand.NotifyCanExecuteChanged();
         LoadMoreVersionsCommand.NotifyCanExecuteChanged(); InstallCommand.NotifyCanExecuteChanged(); OpenWebsiteCommand.NotifyCanExecuteChanged();
         RefreshDescriptionCommand.NotifyCanExecuteChanged();
+        OpenDetailsCommand.NotifyCanExecuteChanged();
     }
 }
 

@@ -71,8 +71,12 @@ public sealed partial class HttpFileDownloader : IFileDownloader, IDisposable
         EnsureNoLinks(parent);
 
         if (_options.CacheDirectory is not null && hashes.Count > 0)
-            return await DownloadCachedAsync(destination, urls, request.ExpectedSize, maximumBytes, hashes,
+        {
+            var result = await DownloadCachedAsync(destination, urls, request.ExpectedSize, maximumBytes, hashes,
                 progress, cancellationToken).ConfigureAwait(false);
+            await MaintainCacheIfDueAsync(cancellationToken).ConfigureAwait(false);
+            return result;
+        }
 
         Exception? lastFailure = null;
         var attemptNumber = 0;

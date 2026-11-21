@@ -27,6 +27,8 @@ internal sealed class StoredMinecraftAccounts
 
 internal interface IMinecraftAccountStore
 {
+    // 内存测试替身可由调用者串行使用；磁盘实现必须协调所有共享该文件的进程。
+    ValueTask<IDisposable?> AcquireAsync(CancellationToken token) => ValueTask.FromResult<IDisposable?>(null);
     Task<StoredMinecraftAccounts?> LoadAsync(CancellationToken token);
     Task SaveAsync(StoredMinecraftAccounts accounts, CancellationToken token);
     Task DeleteAsync(CancellationToken token);
@@ -37,6 +39,28 @@ internal sealed class WindowsMinecraftAccountStore(string path) : IMinecraftAcco
 {
     internal const int MaximumAccounts = 32;
     private const int MaximumBytes = 4 * 1024 * 1024;
+
+    /// <summary>锁住整个读取、变更与保存过程，而非仅锁住每个写入者自己的临时文件。</summary>
+    public async ValueTask<IDisposable?> AcquireAsync(CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var lockPath = Path.GetFullPath(path) + ".lock";
+        InstanceImportPaths.EnsureNoLinks(lockPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(lockPath)!);
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            InstanceImportPaths.EnsureNoLinks(lockPath);
+            try { return new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+            catch (IOException ex) when ((ex.HResult & 0xffff) is 32 or 33)
+            {
+                if (started.Elapsed >= TimeSpan.FromSeconds(10))
+                    throw new MinecraftAuthenticationException("另一个 EML 窗口正在处理账号，请稍后再试。未修改本机凭证。");
+                await Task.Delay(100, token).ConfigureAwait(false);
+            }
+        }
+    }
 
     /// <summary>仅在当前用户可解密时加载；损坏数据保留，不以空账号覆盖。</summary>
     public async Task<StoredMinecraftAccounts?> LoadAsync(CancellationToken token)

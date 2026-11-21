@@ -99,6 +99,7 @@ public sealed class LauncherViewsSmokeTests
             VerifyDownloadCenterPage(host);
             host.Child = null;
             DialogAppearanceChecks.Run();
+            AvatarViewChecks.Run(new Border { Width = 720, Height = 520 });
             // 主题回归会建立独立资源宿主，避免已关闭的测试窗口影响后续离屏页面继承。
             AppearanceChecks.Run(new Border { Width = 720, Height = 520 });
             Assert.Empty(application.Windows.Cast<Window>());
@@ -106,68 +107,8 @@ public sealed class LauncherViewsSmokeTests
         finally { application.Shutdown(); }
     }
 
-    /// <summary>真实下载页面使用主模型形状绑定，验证两种筛选布局、输入可见性和版本选择。</summary>
-    private static void VerifyInstanceDownloadsPage(Border host)
-    {
-        foreach (var minecraft in new[] { false, true })
-        {
-            var model = new InstanceDownloadsPreview(minecraft);
-            var page = new InstanceDownloadsView
-            {
-                DataContext = new { Downloads = model, Instances = new { TransferPercent = 42, TransferStatus = "正在补全依赖……" } },
-                FontFamily = new FontFamily("Microsoft YaHei UI"), FontSize = 14,
-                Background = (Brush)Application.Current.FindResource("WindowBackgroundBrush")
-            };
-            host.Child = page;
-            Layout(host);
-            var search = Assert.IsType<TextBox>(page.FindName("SearchInput"));
-            Assert.Same(model, search.DataContext);
-            search.SetCurrentValue(TextBox.TextProperty, minecraft ? "1.20.1" : "GTNH 中文整合包");
-            Assert.Equal(search.Text, model.SearchText);
-            var visible = MeasureSingleLineVisibility(search, "下载实例搜索");
-            Assert.True(visible.Visible, visible.Detail);
-            var providers = Assert.Single(VisualDescendants(page).OfType<ComboBox>(), item =>
-                BindingOperations.GetBinding(item, Selector.SelectedIndexProperty)?.Path.Path == "ProviderIndex");
-            Assert.Equal(minecraft ? 2 : 0, providers.SelectedIndex);
-            var projects = Assert.Single(VisualDescendants(page).OfType<ListBox>());
-            Assert.Same(model.SelectedProject, projects.SelectedItem);
-            var releases = Assert.Single(VisualDescendants(page).OfType<ComboBox>(), item =>
-                BindingOperations.GetBinding(item, Selector.SelectedItemProperty)?.Path.Path == "SelectedRelease");
-            Assert.Same(model.SelectedRelease, releases.SelectedItem);
-            releases.SelectedItem = model.Releases[1];
-            Assert.Same(model.Releases[1], model.SelectedRelease);
-            var version = Assert.Single(VisualDescendants(page).OfType<TextBox>(), item =>
-                BindingOperations.GetBinding(item, TextBox.TextProperty)?.Path.Path == "GameVersion");
-            var snapshots = Assert.Single(VisualDescendants(page).OfType<CheckBox>());
-            Assert.Equal(!minecraft, IsLocallyVisible(version, page));
-            Assert.Equal(minecraft, IsLocallyVisible(snapshots, page));
-            var description = Assert.IsType<TextBox>(page.FindName("ProjectDescriptionText"));
-            Assert.Equal(!minecraft, IsLocallyVisible(description, page));
-            Assert.True(description.IsReadOnly);
-            Assert.Equal(model.ProjectDescription, description.Text);
-            Assert.Equal(BindingMode.OneWay, BindingOperations.GetBinding(description, TextBox.TextProperty)?.Mode);
-            Assert.Contains("作者提供的中文", description.Text);
-            Assert.Contains("English description", description.Text);
-            var detail = Assert.Single(VisualDescendants(page).OfType<ScrollViewer>(), item =>
-                item.Content is StackPanel panel && panel.Children.OfType<ComboBox>().Any());
-            Assert.True(detail.ViewportHeight > 0);
-            detail.ScrollToBottom(); Layout(host);
-            Assert.True(detail.VerticalOffset > 0, "小窗口中安装详情必须可滚动。");
-            var install = Assert.Single(VisualDescendants(page).OfType<Button>(), item => Equals(item.Content, "下载并创建实例"));
-            var bounds = install.TransformToAncestor(page).TransformBounds(new Rect(install.RenderSize));
-            Assert.True(bounds.Top >= 0 && bounds.Bottom <= page.ActualHeight);
-            Assert.True(bounds.Left >= 0 && bounds.Right <= page.ActualWidth);
-            WritePageOverview(host, page, minecraft ? "download-vanilla.png" : "download-modpacks.png");
-            model.IsInstalling = true;
-            Layout(host);
-            Assert.False(search.IsEnabled);
-            Assert.False(providers.IsEnabled);
-            Assert.False(projects.IsEnabled);
-            Assert.False(releases.IsEnabled);
-            var cancel = Assert.Single(VisualDescendants(page).OfType<Button>(), item => Equals(item.Content, "取消下载 / 安装"));
-            Assert.True(IsLocallyVisible(cancel, page));
-        }
-    }
+    /// <summary>使用真实目录模型检查独立列表、详情与返回保留，不访问网络或用户实例。</summary>
+    private static void VerifyInstanceDownloadsPage(Border host) => CatalogPageChecks.Run(host);
 
     /// <summary>下载中心使用真实页面模型验证状态命令、可复制错误和小窗口下的设置与滚动。</summary>
     private static void VerifyDownloadCenterPage(Border host)
@@ -279,63 +220,6 @@ public sealed class LauncherViewsSmokeTests
         finally { host.Width = width; host.Height = height; Layout(host); }
     }
 
-    /// <summary>提供下载页面的纯展示数据，不实例化目录查询或安装服务。</summary>
-    private sealed class InstanceDownloadsPreview : INotifyPropertyChanged
-    {
-        private bool _isInstalling;
-        public event PropertyChangedEventHandler? PropertyChanged;
-        public string[] Providers { get; } = ["Modrinth 整合包", "CurseForge 整合包", "Minecraft 官方原版"];
-        public string[] Loaders { get; } = ["", "forge", "fabric"];
-        public string[] Sorts { get; } = ["相关度 / 热门", "下载量", "最近更新"];
-        public int ProviderIndex { get; set; }
-        public int SortIndex { get; set; }
-        public string SearchText { get; set; } = "";
-        public string GameVersion { get; set; } = "1.20.1";
-        public string Loader { get; set; } = "fabric";
-        public bool IncludeSnapshots { get; set; }
-        public bool IsMinecraft => ProviderIndex == 2;
-        public bool IsModpack => !IsMinecraft;
-        public bool CanBrowse => !IsInstalling;
-        public bool HasMore => false;
-        public bool HasMoreVersions => false;
-        public string Status => "选择项目查看具体版本。";
-        public string VersionStatus => "请选择需要安装的版本。";
-        public string ProjectInformation => SelectedProject.Project.Name + "\n" + SelectedProject.Project.Summary;
-        public string ProjectDescription => "作者提供的中文介绍，直接来自平台。\n\nEnglish description supplied by the author.";
-        public bool HasProjectDescription => true;
-        public string DescriptionStatus => "来自 Modrinth 的项目介绍，按作者提供的语言显示。";
-        public string ReleaseInformation => "版本 1.20.1\n安装到新实例\n" + string.Join("\n", Enumerable.Repeat("请确认游戏版本与加载器。", 6));
-        public string InstallStatus => "下载后确认名称，并自动补全依赖。";
-        public string ArchiveProgress => "";
-        public double ArchivePercent => 0;
-        public InstanceDownloadRow[] Projects { get; }
-        public InstanceDownloadRow SelectedProject { get; set; }
-        public InstanceCatalogRelease[] Releases { get; }
-        public InstanceCatalogRelease SelectedRelease { get; set; }
-        public bool IsInstalling
-        {
-            get => _isInstalling;
-            set
-            {
-                _isInstalling = value;
-                PropertyChanged?.Invoke(this, new(nameof(IsInstalling)));
-                PropertyChanged?.Invoke(this, new(nameof(CanBrowse)));
-            }
-        }
-
-        /// <summary>创建平台对应的显示条目，两条版本用于检验双向选择绑定。</summary>
-        public InstanceDownloadsPreview(bool minecraft)
-        {
-            ProviderIndex = minecraft ? 2 : 0;
-            var provider = (InstanceCatalogProvider)ProviderIndex;
-            Projects = [new(new InstanceCatalogProject { Provider = provider, Id = "preview", Name = minecraft ? "Minecraft 1.20.1" : "GTNH · 中文整合包",
-                Author = "演示作者", Summary = "此处展示选中项目的简介，不访问网络。" })];
-            SelectedProject = Projects[0];
-            Releases = [new() { Provider = provider, ProjectId = "preview", Id = "release-one", Name = "1.20.1", GameVersions = ["1.20.1"], ReleaseType = "正式版" },
-                new() { Provider = provider, ProjectId = "preview", Id = "release-two", Name = "1.20.1 · 第二个版本", GameVersions = ["1.20.1"], ReleaseType = "正式版" }];
-            SelectedRelease = Releases[0];
-        }
-    }
 
     /// <summary>设置大页面绑定同一实例，忙碌时不能切换目标；小窗口仍可访问参数和固定操作栏。</summary>
     private static void VerifyLaunchSettingsPage(Border host)

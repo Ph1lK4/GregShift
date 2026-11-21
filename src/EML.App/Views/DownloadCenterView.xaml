@@ -35,6 +35,11 @@
       <Button Content="保存下载设置" Command="{Binding SaveSettingsCommand}" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom"/>
      </WrapPanel>
      <TextBlock Text="{Binding SettingsStatus}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>
+     <WrapPanel Margin="0,10,0,0">
+      <Button Content="查看缓存用量" Command="{Binding ReadCacheSizeCommand}" Style="{StaticResource QuietButton}" Margin="0,0,8,0"/>
+      <Button Content="清理已完成的缓存" Command="{Binding ClearCompletedCacheCommand}" Style="{StaticResource QuietButton}"/>
+     </WrapPanel>
+     <TextBlock Text="{Binding CacheStatus}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0"/>
     </StackPanel>
    </Expander>
   </Border>

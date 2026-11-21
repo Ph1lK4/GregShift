@@ -58,6 +58,7 @@ public partial class OnlineModsViewModel : ObservableObject
     [ObservableProperty] private bool hasMore;
     [ObservableProperty] private bool hasMoreVersions;
     [ObservableProperty] private bool includeRequired = true;
+    [ObservableProperty] private bool isDetailOpen;
     [ObservableProperty] private OnlineModResultRow? selectedProject;
     [ObservableProperty] private OnlineModProject? projectDetails;
     [ObservableProperty] private OnlineModVersion? selectedVersion;
@@ -80,6 +81,7 @@ public partial class OnlineModsViewModel : ObservableObject
     public Task DetailTask { get; private set; } = Task.CompletedTask;
     public Task VersionTask { get; private set; } = Task.CompletedTask;
     public bool CanEdit => !_closing && !IsInstalling && _canModify();
+    public bool HasInstallActivity => IsInstalling || !string.IsNullOrWhiteSpace(ProgressText);
     public string ProjectDisplayName => ProjectDetails is not { } project ? "" : OnlineModDisplayText.Name(project.Id, project.Name, _localization);
     public string ProjectDisplaySummary => ProjectDetails is not { } project ? "" : OnlineModDisplayText.Summary(project.Id, project.Summary, _localization);
     public string ProjectSummaryNote => ProjectDetails is not { } project ? "" : OnlineModDisplayText.SummaryNote(project.Id, _localization);
@@ -103,6 +105,31 @@ public partial class OnlineModsViewModel : ObservableObject
         (item.Message is null ? "" : "\n" + item.Message) +
         (item.File.ManualDownloadUrl is null ? "" : "\n手动下载：" + item.File.ManualDownloadUrl)));
 
+    /// <summary>只有用户明确打开条目时才进入详情；再次打开同一项目保留版本、依赖和安装清单。</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenDetails))]
+    private void OpenDetails(OnlineModResultRow? project)
+    {
+        if (project is null || !CanOpenDetails(project)) return;
+        var reopening = ReferenceEquals(SelectedProject, project);
+        SelectedProject = project;
+        if (reopening && !IsInstalling)
+        {
+            if (ProjectDetails is null && !IsLoadingDetails)
+                DetailTask = Track(LoadProjectAsync(project.Project));
+            else if (SelectedVersion is { } version && VersionDetails is null && !IsLoadingVersion)
+                VersionTask = Track(LoadVersionAsync(version));
+        }
+        IsDetailOpen = true;
+    }
+
+    /// <summary>安装中仅允许查看当前安装项目，避免导航改变已经确认的下载目标。</summary>
+    private bool CanOpenDetails(OnlineModResultRow? project) => !_closing && project is not null &&
+        (!IsInstalling || ReferenceEquals(project, SelectedProject));
+
+    /// <summary>返回只切换页面，不重置项目、筛选、版本或后台安装。</summary>
+    [RelayCommand]
+    private void BackToResults() => IsDetailOpen = false;
+
     /// <summary>切换实例立即取消旧查询、清空计划，并使用扫描所得的版本与加载器作为搜索默认值。</summary>
     public void SetInstance(MinecraftInstance? instance)
     {
@@ -119,6 +146,7 @@ public partial class OnlineModsViewModel : ObservableObject
             Projects.Clear(); SelectedProject = null; HasMore = false;
             Status = instance is null ? "请先选择实例。" : "输入关键词或点击搜索。";
             InstallStatus = "选择精确版本和文件后，先预览安装清单。";
+            ProgressText = ""; InstallPercent = 0;
             InvalidatePlan();
         }
         finally { _settingContext = false; }
@@ -171,6 +199,7 @@ public partial class OnlineModsViewModel : ObservableObject
     partial void OnIncludeRequiredChanged(bool value) => InvalidatePlan();
     partial void OnSelectedProjectChanged(OnlineModResultRow? value)
     {
+        IsDetailOpen = false;
         ResetDetails();
         if (value is not null && !_closing) DetailTask = Track(LoadProjectAsync(value.Project));
     }
@@ -197,6 +226,8 @@ public partial class OnlineModsViewModel : ObservableObject
     partial void OnIsLoadingVersionChanged(bool value) => NotifyCommands();
     partial void OnIsPlanningChanged(bool value) => NotifyCommands();
     partial void OnIsInstallingChanged(bool value) => NotifyHostStateChanged();
+    /// <summary>安装结果留在公共状态栏，返回列表也能看到进度与取消入口。</summary>
+    partial void OnProgressTextChanged(string value) => OnPropertyChanged(nameof(HasInstallActivity));
     partial void OnHasMoreChanged(bool value) => LoadMoreCommand.NotifyCanExecuteChanged();
     partial void OnHasMoreVersionsChanged(bool value) => LoadMoreVersionsCommand.NotifyCanExecuteChanged();
 
@@ -606,6 +637,7 @@ public partial class OnlineModsViewModel : ObservableObject
     {
         SearchCommand.NotifyCanExecuteChanged(); LoadMoreCommand.NotifyCanExecuteChanged();
         LoadMoreVersionsCommand.NotifyCanExecuteChanged(); PreviewCommand.NotifyCanExecuteChanged(); InstallCommand.NotifyCanExecuteChanged();
+        OpenDetailsCommand.NotifyCanExecuteChanged(); OnPropertyChanged(nameof(HasInstallActivity));
     }
     /// <summary>扫描描述仅用于搜索默认值，真正安装仍由服务核对实例清单。</summary>
     private static string DetectLoader(string? description)
