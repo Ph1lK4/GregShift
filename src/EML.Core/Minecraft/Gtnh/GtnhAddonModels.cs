@@ -23,6 +23,8 @@ public sealed record GtnhAddon(string Id, string Name, string Summary, string Ca
     public string? AssetNamePrefix { get; init; }
     /// <summary>人工目录中的文件名白名单，用于区分同一发行里的主包、界面包和其他附件。</summary>
     public string? AssetNamePattern { get; init; }
+    /// <summary>作者明确限定的 GTNH 版本；未配置表示未知，不代表支持所有版本。</summary>
+    public string? RequiredGtnhVersion { get; init; }
     public string ProjectUrl => WebsiteUrl ?? (Provider == GtnhAddonProvider.Github ? "https://github.com/" + Repository : "");
     public string SourceDisplay => Provider switch
     {
@@ -57,6 +59,7 @@ public sealed record GtnhAddonRelease
     public DateTimeOffset Published { get; init; }
     public bool Prerelease { get; init; }
     public string Notes { get; init; } = "";
+    public string CompatibilitySummary { get; init; } = "";
     public string? Problem { get; init; }
     /// <summary>平台校验要求只属于实际采用的内容来源，安装服务还会核对签发快照。</summary>
     public InstanceFileRequirement? DownloadRequirement { get; init; }

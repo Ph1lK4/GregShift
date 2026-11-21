@@ -16,13 +16,38 @@ public sealed class TemurinJavaRuntimeService : IJavaRuntimeService, IDisposable
     private const long MaximumExpandedBytes = 2L * 1024 * 1024 * 1024;
     private const int MaximumEntries = 50000;
     private const int MaximumMetadataBytes = 4 * 1024 * 1024;
-    private const string ReceiptName = ".eml-java.json";
+    internal const string ReceiptName = ".eml-java.json";
+    private const int MaximumReceiptBytes = 16 * 1024 * 1024;
     private readonly HttpClient _client;
     private readonly IFileDownloader _downloader;
     private readonly Func<string, CancellationToken, Task<JavaInstallation>> _probe;
     private readonly TimeSpan _metadataTimeout;
     private readonly SemaphoreSlim _installationGate = new(1, 1);
     public string InstallationRoot { get; }
+
+    /// <summary>快速核对自动发现的 Java 入口，不执行未知文件；完整运行时校验仍由安装流程负责。</summary>
+    internal static bool HasMatchingExecutableReceipt(string executable, string directoryName)
+    {
+        var receiptPath = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(executable))!, ReceiptName);
+        try
+        {
+            InstanceImportPaths.EnsureNoLinks(receiptPath);
+            using var input = new FileStream(receiptPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (input.Length is <= 0 or > MaximumReceiptBytes) return false;
+            var receipt = JsonSerializer.Deserialize<InstallationReceipt>(input);
+            if (receipt is null || receipt.Architecture is not ("x64" or "x86" or "aarch64") ||
+                receipt.ArchiveSha256 is not { Length: 64 } sha256 || !sha256.All(Uri.IsHexDigit) ||
+                !directoryName.Equals($"temurin-{receipt.MajorVersion}-{receipt.Architecture}-{sha256}", StringComparison.OrdinalIgnoreCase) ||
+                receipt.Files is not { Length: > 0 and <= MaximumEntries }) return false;
+            var entries = receipt.Files.Where(file => file is not null &&
+                string.Equals(file.Path, "bin/java.exe", StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+            if (entries.Length != 1 || entries[0].Size is <= 0 or > MaximumArchiveBytes ||
+                entries[0].Sha256 is not { Length: 64 } expected || !expected.All(Uri.IsHexDigit)) return false;
+            using var content = new FileStream(executable, FileMode.Open, FileAccess.Read, FileShare.Read);
+            return content.Length == entries[0].Size && expected.Equals(Convert.ToHexStringLower(SHA256.HashData(content)), StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException) { return false; }
+    }
 
     /// <summary>复用任务中心下载 ZIP；元数据客户端不携带账号信息，也不跟随重定向。</summary>
     public TemurinJavaRuntimeService(string launcherRoot, IFileDownloader downloader)
@@ -210,7 +235,7 @@ public sealed class TemurinJavaRuntimeService : IJavaRuntimeService, IDisposable
         InstanceImportPaths.EnsureNoLinks(path);
         if (!File.Exists(path)) throw new IOException("现有 Java 安装缺少校验记录，请手动检查此目录：" + root);
         await using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192, true);
-        if (input.Length > 16 * 1024 * 1024) throw new InvalidDataException("Java 安装记录超过大小限制。");
+        if (input.Length > MaximumReceiptBytes) throw new InvalidDataException("Java 安装记录超过大小限制。");
         var receipt = await JsonSerializer.DeserializeAsync<InstallationReceipt>(input, cancellationToken: token).ConfigureAwait(false);
         if (receipt is null || receipt.ArchiveSha256 != package.Sha256.ToLowerInvariant() || receipt.MajorVersion != package.MajorVersion ||
             receipt.Architecture != package.Architecture || receipt.Files is not { Length: > 0 and <= MaximumEntries })

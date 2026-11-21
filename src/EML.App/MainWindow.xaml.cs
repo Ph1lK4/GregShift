@@ -34,6 +34,7 @@ public partial class MainWindow : Window
     private readonly ModrinthApiClient _modrinth = new();
     private readonly CurseForgeApiClient _curseForge = new();
     private readonly ModIconCache _modIcons;
+    private readonly MinecraftAvatarCache _playerAvatars;
     private readonly GtnhAddonService _gtnhAddons;
     private readonly GtnhMirrorPackService _gtnhPacks;
     private readonly InstanceCatalog _instanceCatalog;
@@ -50,6 +51,8 @@ public partial class MainWindow : Window
         _notifications = new WpfOperationNotifications(this);
         _operationNotifications = new ScopedOperationNotifications(_notifications);
         var launcherRoot = GetLauncherRoot();
+        _playerAvatars = new MinecraftAvatarCache(launcherRoot, MinecraftHeadRenderer.DecodeSkin);
+        Views.PlayerAvatar.SetCache(this, _playerAvatars);
         // 外观初始化只更新资源，不弹窗，也不访问实例或账号。
         _appearance = new AppearanceService(launcherRoot);
         var appearance = new AppearanceViewModel(_appearance, ChooseWallpaper,
@@ -65,7 +68,7 @@ public partial class MainWindow : Window
         var checker = new MinecraftInstanceChecker(launcherRoot);
         _javaRuntimes = new TemurinJavaRuntimeService(launcherRoot, _downloadCenter);
         // RC2 的程序在 app/，仍扫描启动器根目录以兼容用户自行解压的 Java。
-        var javaLocator = new WindowsJavaLocator([_javaRuntimes.InstallationRoot, launcherRoot]);
+        var javaLocator = new WindowsJavaLocator(launcherRoot, _javaRuntimes.InstallationRoot);
         var java = new JavaSettingsViewModel(javaLocator, notifications: _operationNotifications, runtimes: _javaRuntimes);
         var localMods = new LocalModManager(launcherRoot);
         var onlineCatalog = new OnlineModCatalog(_modrinth, _curseForge);
@@ -102,7 +105,9 @@ public partial class MainWindow : Window
             notifications: _operationNotifications);
         var transferCenter = _operationNotifications.RunInitialization(() => new DownloadCenterViewModel(_downloadCenter,
             new System.Windows.Threading.DispatcherSynchronizationContext(Dispatcher), notifications: _operationNotifications,
-            settingsPath: Path.Combine(launcherRoot, "settings", "downloads.json")));
+            settingsPath: Path.Combine(launcherRoot, "settings", "downloads.json"), cache: _fileDownloader,
+            confirmClearCache: () => DialogPrompt.Confirm(this, "清理已完成的下载缓存？",
+                "只清理可重新下载的缓存对象；不会删除已安装的文件、原始整合包、备份或续传进度。正在使用的缓存会跳过。", "清理缓存")));
         DataContext = new MainViewModel(java, instances, accounts, downloads, transferCenter, appearance);
         ContentRendered += OnFirstContentRendered;
         Closing += OnWindowClosing;
@@ -175,6 +180,7 @@ public partial class MainWindow : Window
         _notifications.Dispose();
         if (DataContext is MainViewModel viewModel) viewModel.Dispose();
         _appearance.Dispose();
+        _playerAvatars.Dispose();
         _javaRuntimes.Dispose(); _instanceCatalog.Dispose(); _gtnhPacks.Dispose(); _gtnhAddons.Dispose(); _fileDownloader.Dispose(); _accountService.Dispose(); _modrinth.Dispose(); _curseForge.Dispose(); _modIcons.Dispose();
     }
 

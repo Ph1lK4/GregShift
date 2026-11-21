@@ -65,10 +65,12 @@ internal static class LaunchIdentitySynchronizationTests
         list.SetCurrentValue(Selector.SelectedItemProperty, second);
         Flush(host);
         Assert.Equal(first.Id, accounts.AccountId);
+        Assert.Equal(first.Id, Assert.IsType<PlayerAvatar>(page.FindName("DefaultAccountAvatar")).AccountId);
         Assert.True(select.IsEnabled);
         Wait(accounts.SelectAccountCommand.ExecuteAsync(null));
         Flush(host);
         Assert.Equal(second.Id, accounts.AccountId);
+        Assert.Equal(second.Id, Assert.IsType<PlayerAvatar>(page.FindName("DefaultAccountAvatar")).AccountId);
         Assert.False(select.IsEnabled);
         Wait(accounts.RemoveAccountCommand.ExecuteAsync(null));
         Flush(host);
@@ -523,6 +525,9 @@ internal static class LaunchIdentitySynchronizationTests
             }
             foreach (var identity in new[] { InstanceIdentity, SettingsIdentity })
             {
+                var avatar = Assert.IsType<PlayerAvatar>(identity.FindName("SelectedPlayerAvatar"));
+                Assert.Equal(microsoft, avatar.IsOnline);
+                Assert.Equal(Model.SelectedMicrosoftAccount?.Id, avatar.AccountId);
                 var account = Assert.IsType<ComboBox>(identity.FindName("MicrosoftAccountSelector"));
                 Assert.Equal(Model.SelectedMicrosoftPlayerName, Assert.IsType<MinecraftAccount>(account.SelectedItem).Name);
                 Assert.False(account.IsEditable);

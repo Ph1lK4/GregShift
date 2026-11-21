@@ -15,6 +15,8 @@ public sealed partial class DownloadCenterViewModel : ObservableObject, IDisposa
     private readonly SynchronizationContext _context;
     private readonly IOperationNotifications _notifications;
     private readonly string? _settingsPath;
+    private readonly IDownloadCacheMaintenance? _cache;
+    private readonly Func<bool>? _confirmClearCache;
     private readonly Dictionary<Guid, DownloadTaskRow> _rows = [];
     private int _refreshQueued;
     private int _disposed;
@@ -29,6 +31,7 @@ public sealed partial class DownloadCenterViewModel : ObservableObject, IDisposa
     [ObservableProperty] private string totalSpeed = "0 B/s";
     [ObservableProperty] private DownloadTaskRow? selectedTask;
     [ObservableProperty] private int selectedPriorityIndex = 1;
+    [ObservableProperty] private string cacheStatus = "只清理可重新下载的对象；保留续传片段、原始整合包和实例备份。";
 
     public ObservableCollection<DownloadTaskRow> Tasks { get; } = [];
     public IReadOnlyList<string> Priorities { get; } = ["低", "普通", "高"];
@@ -37,11 +40,14 @@ public sealed partial class DownloadCenterViewModel : ObservableObject, IDisposa
 
     /// <summary>必须在界面线程创建，或显式提供界面同步上下文；构造不暂停或启动任务。</summary>
     public DownloadCenterViewModel(IDownloadTaskCenter center, SynchronizationContext? context = null,
-        IOperationNotifications? notifications = null, string? settingsPath = null)
+        IOperationNotifications? notifications = null, string? settingsPath = null,
+        IDownloadCacheMaintenance? cache = null, Func<bool>? confirmClearCache = null)
     {
         _center = center;
         _notifications = notifications ?? NullOperationNotifications.Instance;
         _settingsPath = settingsPath;
+        _cache = cache;
+        _confirmClearCache = confirmClearCache;
         _context = context ?? SynchronizationContext.Current ??
             throw new InvalidOperationException("下载中心需要界面线程的同步上下文。");
         var settings = center.Settings;
@@ -49,6 +55,36 @@ public sealed partial class DownloadCenterViewModel : ObservableObject, IDisposa
         rateLimitKiBText = (settings.BytesPerSecond / 1024m).ToString(CultureInfo.InvariantCulture);
         _center.Changed += OnCenterChanged;
         RefreshSnapshot();
+    }
+
+    private bool CanManageCache() => CanInteract && _cache is not null;
+
+    [RelayCommand(CanExecute = nameof(CanManageCache), AllowConcurrentExecutions = false)]
+    private async Task ReadCacheSizeAsync()
+    {
+        try { CacheStatus = $"下载缓存：{DownloadTaskRow.FormatBytes(await _cache!.GetCacheSizeAsync())}（含续传片段）。"; }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            CacheStatus = "读取缓存用量失败：" + ex.Message;
+            _notifications.Failure("读取缓存用量失败", ex);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanManageCache), AllowConcurrentExecutions = false)]
+    private async Task ClearCompletedCacheAsync()
+    {
+        if (_confirmClearCache?.Invoke() != true) return;
+        try
+        {
+            var result = await _cache!.ClearCompletedCacheAsync();
+            CacheStatus = $"已释放 {DownloadTaskRow.FormatBytes(result.RemovedBytes)}；剩余 {DownloadTaskRow.FormatBytes(result.RemainingBytes)}（含正在使用的文件及续传片段）。";
+            _notifications.Success("已清理可移除的下载缓存", CacheStatus);
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            CacheStatus = "清理未完成，可能已清理部分缓存：" + ex.Message;
+            _notifications.Failure("清理缓存未完成", CacheStatus);
+        }
     }
 
     /// <summary>后台事件只安排一次界面刷新，连续进度事件共用同一个待处理回调。</summary>

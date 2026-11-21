@@ -16,6 +16,24 @@ public sealed class WindowsMinecraftAccountCollectionStoreTests : IDisposable
     private const string SecondId = "aaaaaaaa222233334444555555555555";
     private string PathToStore => Path.Combine(_directory, "fake-accounts.dpapi");
 
+    [Fact]
+    public async Task AccountLeaseIsExclusiveAcrossIndependentStoreInstancesAndCancelable()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var first = new WindowsMinecraftAccountStore(PathToStore);
+        var second = new WindowsMinecraftAccountStore(PathToStore);
+        using (await first.AcquireAsync(default))
+        {
+            using var cancellation = new CancellationTokenSource();
+            var pending = second.AcquireAsync(cancellation.Token).AsTask();
+            Assert.False(pending.IsCompleted);
+            await cancellation.CancelAsync();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        }
+        using var reopened = await second.AcquireAsync(default);
+        Assert.NotNull(reopened);
+    }
+
     /// <summary>读取旧单账号仅在内存升级模型，原密文不变；后续保存才写入完整新版集合。</summary>
     [Fact]
     public async Task LegacyEncryptedAccountMigratesWithoutRewritingOnRead()

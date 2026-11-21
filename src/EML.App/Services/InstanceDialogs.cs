@@ -37,6 +37,9 @@ public sealed class InstanceDialogs(Window owner) : IInstanceDialogs
     /// <summary>选择未使用的 ZIP 保存路径；重名时重新选择，取消时返回 null。</summary>
     public string? ChooseExportPath(MinecraftInstance instance)
     {
+        if (!DialogPrompt.Confirm(owner, "导出完整备份？",
+            "完整备份供自己恢复实例，可能包含存档、服务器列表、聊天日志与私人配置。请保留在可信位置，不要直接公开上传或作为整合包分享。",
+            "选择保存位置", subject: instance.Name, detail: instance.InstancePath)) return null;
         var dialog = new SaveFileDialog
         {
             Title = "导出实例完整备份（含存档和配置）", Filter = "ZIP 压缩包|*.zip",

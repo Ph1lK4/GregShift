@@ -40,6 +40,8 @@
     <Compile Include="..\..\src\EML.App\ViewModels\OnlineModsViewModel.cs" Link="App\OnlineModsViewModel.cs" />
     <Compile Include="..\..\src\EML.App\Services\IModIconCache.cs" Link="App\IModIconCache.cs" />
     <Compile Include="..\..\src\EML.App\Services\ModIconCache.cs" Link="App\ModIconCache.cs" />
+    <Compile Include="..\..\src\EML.App\Services\IMinecraftAvatarCache.cs" Link="App\IMinecraftAvatarCache.cs" />
+    <Compile Include="..\..\src\EML.App\Services\MinecraftAvatarCache.cs" Link="App\MinecraftAvatarCache.cs" />
     <Compile Include="..\..\src\EML.App\Services\OnlineModDisplayText.cs" Link="App\OnlineModDisplayText.cs" />
     <Compile Include="..\..\src\EML.App\Services\IModManagementDialogs.cs" Link="App\IModManagementDialogs.cs" />
     <Compile Include="..\..\src\EML.App\Services\IInstanceMigrationDialogs.cs" Link="App\IInstanceMigrationDialogs.cs" />

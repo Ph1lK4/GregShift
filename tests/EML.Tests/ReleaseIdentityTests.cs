@@ -15,6 +15,13 @@ public sealed class ReleaseIdentityTests
         Assert.Contains(ReleaseIdentity.DisplayVersion, ReleaseIdentity.WindowTitle);
     }
 
+    /// <summary>运行时标题与侧栏使用同一品牌，并保留统一发布版本。</summary>
+    [Fact]
+    public void WindowTitleUsesGregShiftBrandAndReleaseVersion()
+    {
+        Assert.Equal($"GregShift {ReleaseIdentity.DisplayVersion} · 我的世界启动器", ReleaseIdentity.WindowTitle);
+    }
+
     /// <summary>程序集及 Windows 文件版本必须为有效数字格式。</summary>
     [Fact]
     public void AssemblyAndFileVersionsAreNumeric()

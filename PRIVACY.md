@@ -1,6 +1,6 @@
 # 隐私说明 / Privacy notice
 
-更新日期：2026-11-18。适用于当前 EML 源码和 `1.0-RC1` 候选发布版。
+更新日期：2026-11-20。适用于当前 EML 源码；已发布版本的行为以对应版本说明为准。
 
 EML 是面向 Minecraft、尤其是 GTNH 玩家的 Windows 启动器。公开维护者为 **K4ssia**，联系及安全漏洞私报邮箱为 **[477619464@qq.com](mailto:477619464@qq.com)**。
 
@@ -31,6 +31,8 @@ EML 的账号存储使用当前 Windows 用户范围的 DPAPI 加密，不将微
 启动器打开时读取本机账号记录，不据此主动刷新会话；用户进行正版登录或正版启动时会按流程联网。正版启动还需要把玩家身份及游戏会话信息传给本机 Minecraft 进程。因此本机进程、游戏或模组对这些信息的访问不能仅靠凭证文件加密来阻止。
 
 离线模式使用用户填写的玩家名，不等于获得正版授权，也不能保证进入要求正版认证的服务器。
+
+账号页与正版启动身份选择显示时，EML 会用公开的 Minecraft UUID 向 `sessionserver.mojang.com` 查询皮肤地址，再从 `textures.minecraft.net` 获取皮肤并在本机生成头像。这些头像请求不发送登录令牌、密码或离线玩家名，也不访问第三方头像网站；不会为获取头像刷新登录会话。皮肤缓存位于启动器根目录 `.eml-runtime/account-cache/avatars/`，通常六小时内复用；获取失败可使用已有有效缓存，否则显示内置 Steve。离线模式使用内置 Steve，不为头像联网。移除登录记录不会自动删除这些公开皮肤缓存；关闭启动器后可删除此头像缓存目录。
 
 ## 搜索、下载及第三方服务
 
@@ -77,6 +79,8 @@ Instances, worlds, settings, file provenance, migration backups, caches and down
 Folder imports read selected game files and supported launcher instance metadata, not launcher account records. Launcher credentials, application databases and launch commands are excluded from the copied game content. Private information stored by individual mods may still be present; only import instances you trust.
 
 Sign-in uses Microsoft, Xbox and Minecraft services. Search and download features contact Modrinth, CurseForge, Minecraft runtime and loader services, Adoptium, GitHub, GTNH mirrors and project-specified hosts. Requests can include search filters, project/file IDs and file hashes used for matching. Recipients also receive ordinary network request information. Their retention practices, browser sessions and network activity of Minecraft/mods are outside EML's control.
+
+Visible online-account avatars use public Minecraft UUIDs to request skin metadata from `sessionserver.mojang.com` and skins from `textures.minecraft.net`, without login tokens or third-party avatar services. Skin files are cached locally under `.eml-runtime/account-cache/avatars/` and normally reused for six hours; stale valid skins may be used if refresh fails. Offline mode uses a built-in Steve face without avatar requests. Removing an account does not automatically remove its public skin cache; the avatar-cache directory may be deleted after closing EML.
 
 The current source review found no active usage-analytics or automatic crash-upload implementation; this is not a complete traffic audit. Feedback is sent only when you choose to contact the maintainer. Redact logs and never send credentials or full private instances. Contact the same mailbox to discuss removal of information you have emailed.
 

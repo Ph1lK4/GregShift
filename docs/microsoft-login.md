@@ -96,6 +96,8 @@ https://github.com/PrismLauncher/PrismLauncher/tree/develop/launcher/minecraft/a
 
 ## 配置后人工验收
 
+多个已更新的 EML 副本共用 DPAPI 凭据，并以文件锁协调修改；不支持同时用未包含此修复的旧版修改同一个账号库。移除本机记录不会撤销已经启动的 Minecraft 游戏会话。
+
 1. 登录持有 Java 版的账号，确认玩家名和 UUID。
 2. 选择已补全的原版、Fabric/Modrinth、CurseForge、GTNH 实例，以正版身份启动并进入正版验证服务器。
 3. 重启 EML，确认账号能恢复并在启动时刷新；取消登录和刷新故障不删除原凭证。

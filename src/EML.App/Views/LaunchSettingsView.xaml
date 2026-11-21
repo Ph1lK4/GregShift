@@ -35,7 +35,7 @@
               <ComboBox x:Name="JavaPathInput" IsEditable="True" IsTextSearchEnabled="False"
                         ItemsSource="{Binding Java.Installations}" DisplayMemberPath="ExecutablePath"
                         Text="{Binding SelectedJavaPath, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="启动 Java 路径"
-                        ToolTip="可选择检测到的 Java，或输入 java.exe 完整路径；留空会自动匹配"/>
+                        ToolTip="留空自动匹配。手动指定的 java.exe 会在启动时执行，只填写你信任的 Java 安装路径。"/>
               <TextBlock Text="留空时自动匹配所需 Java；可在“Java 环境”中检测或下载。"
                          TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,8,0,18"/>
               <Grid>

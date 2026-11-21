@@ -1,6 +1,7 @@
 <UserControl x:Class="EML.App.Views.LaunchIdentitySelector" Style="{StaticResource {x:Type UserControl}}"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:EML.App.Views">
   <!-- 本地实例与启动设置共用同一个模型；本控件只展示公开玩家名，不读取认证令牌。 -->
   <Grid IsEnabled="{Binding CanEditLaunchSettings}">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -11,8 +12,17 @@
                 SelectedItem="{Binding SelectedLaunchMode, Mode=TwoWay}"
                 AutomationProperties.Name="启动模式" ToolTip="两个入口即时同步；实际启动后自动记住本实例的账号与模式"/>
     </StackPanel>
-    <Grid Grid.Column="2" MaxWidth="360" HorizontalAlignment="Left" MinWidth="200">
-      <StackPanel>
+    <Grid Grid.Column="2" MaxWidth="400" HorizontalAlignment="Left" MinWidth="248">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <views:PlayerAvatar x:Name="SelectedPlayerAvatar" AccountId="{Binding SelectedMicrosoftAccount.Id}"
+                          IsOnline="{Binding UseMicrosoftAccount}" Width="36" Height="36"
+                          VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0,23,12,0">
+        <views:PlayerAvatar.Style><Style TargetType="views:PlayerAvatar">
+          <Setter Property="Visibility" Value="Visible"/>
+          <Style.Triggers><DataTrigger Binding="{Binding UseMicrosoftAccount}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers>
+        </Style></views:PlayerAvatar.Style>
+      </views:PlayerAvatar>
+      <StackPanel Grid.Column="1">
         <StackPanel.Style>
           <Style TargetType="StackPanel">
             <Setter Property="Visibility" Value="Visible"/>
@@ -24,7 +34,7 @@
                  IsEnabled="{Binding CanEditOfflinePlayerName}" MaxLength="16" AutomationProperties.Name="离线玩家名"
                  ToolTip="输入 1–16 位英文字母、数字或下划线；正版服务器需要选择正版模式"/>
       </StackPanel>
-      <StackPanel>
+      <StackPanel Grid.Column="1">
         <StackPanel.Style>
           <Style TargetType="StackPanel">
             <Setter Property="Visibility" Value="Collapsed"/>
@@ -43,9 +53,16 @@
               </Style>
             </Button.Style>
           </Button>
-          <ComboBox x:Name="MicrosoftAccountSelector" ItemsSource="{Binding AvailableMicrosoftAccounts}" DisplayMemberPath="Name"
+          <ComboBox x:Name="MicrosoftAccountSelector" ItemsSource="{Binding AvailableMicrosoftAccounts}"
                   SelectedItem="{Binding SelectedMicrosoftAccount, Mode=TwoWay}" IsSynchronizedWithCurrentItem="False"
-                  AutomationProperties.Name="正版账号" ToolTip="为此实例选择已登录的账号；添加和移除账号请前往“微软账号”页面"/>
+                  AutomationProperties.Name="正版账号" ToolTip="为此实例选择已登录的账号；添加和移除账号请前往“微软账号”页面">
+            <ComboBox.ItemTemplate><DataTemplate>
+              <StackPanel Orientation="Horizontal">
+                <views:PlayerAvatar AccountId="{Binding Id}" Width="24" Height="24" Margin="0,0,8,0"/>
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
         </DockPanel>
       </StackPanel>
     </Grid>

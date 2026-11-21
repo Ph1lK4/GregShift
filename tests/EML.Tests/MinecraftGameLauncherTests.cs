@@ -235,6 +235,27 @@ public sealed class MinecraftGameLauncherTests : IDisposable
         Assert.Contains(seen, value => value.Message == "message-9");
     }
 
+    [Fact]
+    public async Task LogByteLimitDoesNotStopConsumingOutput()
+    {
+        var channel = Channel.CreateUnbounded<MinecraftLaunchProgress>();
+        var seen = new ConcurrentQueue<MinecraftLaunchProgress>();
+        using var bytes = new MemoryStream();
+        await using var log = new StreamWriter(bytes, new UTF8Encoding(false));
+        await channel.Writer.WriteAsync(new(MinecraftLaunchStage.Output, "开始"));
+        await channel.Writer.WriteAsync(new(MinecraftLaunchStage.Output, new string('测', 512)));
+        await channel.Writer.WriteAsync(new(MinecraftLaunchStage.Output, "last-message"));
+        channel.Writer.Complete();
+
+        await MinecraftGameLauncher.PumpOutputAsync(channel.Reader, log,
+            new InlineProgress(seen.Enqueue), "test.log", maximumBytes: 240);
+
+        Assert.InRange(bytes.Length, 1, 240);
+        Assert.Contains("大小上限", Encoding.UTF8.GetString(bytes.ToArray()));
+        Assert.Single(seen, item => item.Message.Contains("大小上限"));
+        Assert.Contains(seen, item => item.Message == "last-message");
+    }
+
     /// <summary>已有取消令牌不会创建 natives、日志、参数文件或子进程。</summary>
     [Fact]
     public async Task PreCanceledRunDoesNotCreateLaunchFiles()

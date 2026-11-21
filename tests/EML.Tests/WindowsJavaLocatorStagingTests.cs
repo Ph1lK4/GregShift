@@ -8,6 +8,41 @@ public sealed class WindowsJavaLocatorStagingTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "EML-java-locator-test-" + Guid.NewGuid().ToString("N"));
     private const string StagingName = ".install-0123456789abcdef0123456789abcdef";
 
+    [Theory]
+    [InlineData("instances/imported/.minecraft/bin")]
+    [InlineData("cache/downloads/bin")]
+    [InlineData(".eml-imports/work/bin")]
+    public void DirectCandidatesInsideLauncherDataCannotBeAutomaticallyProbed(string relative)
+    {
+        var executable = CreateJava(relative);
+        var locator = new WindowsJavaLocator(_root, Path.Combine(_root, "runtimes", "java"));
+        Assert.False(locator.CanProbeAutomatically(executable));
+    }
+
+    [Fact]
+    public void ManagedCandidateRequiresPublishedLayoutAndReceipt()
+    {
+        var root = Path.Combine(_root, "runtimes", "java");
+        var dir = Path.Combine("runtimes", "java", "temurin-21-x64-" + new string('a', 64));
+        var executable = CreateJava(Path.Combine(dir, "bin"));
+        var locator = new WindowsJavaLocator(_root, root);
+
+        Assert.False(locator.CanProbeAutomatically(executable));
+        var receipt = Path.Combine(_root, dir, TemurinJavaRuntimeService.ReceiptName);
+        File.WriteAllText(receipt, "{}");
+        Assert.False(locator.CanProbeAutomatically(executable));
+        var digest = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(executable)));
+        File.WriteAllText(receipt, System.Text.Json.JsonSerializer.Serialize(new
+        {
+            ArchiveSha256 = new string('a', 64), MajorVersion = 21, Architecture = "x64",
+            Files = new[] { new { Path = "bin/java.exe", Size = new FileInfo(executable).Length, Sha256 = digest } }
+        }));
+        Assert.True(locator.CanProbeAutomatically(executable));
+        Assert.False(locator.CanProbeAutomatically(CreateJava(Path.Combine(dir, "unrelated", "bin"))));
+        File.WriteAllText(executable, "not executablE");
+        Assert.False(locator.CanProbeAutomatically(executable));
+    }
+
     /// <summary>由启动器父目录搜索时，未发布 Java 不进入候选集，已发布版本仍然可见。</summary>
     [Fact]
     public void ParentScanExcludesUnpublishedJava()

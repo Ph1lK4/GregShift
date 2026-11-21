@@ -12,6 +12,25 @@ public sealed class MinecraftMultiAccountServiceTests
     private const string MissingId = "bbbbbbbb222233334444555555555555";
     private static readonly MicrosoftLoginOptions Options = new() { ClientId = ClientId };
 
+    [Fact]
+    public async Task IndependentServicesDoNotLoseNewAccountsOrRestoreRemovedAccounts()
+    {
+        var store = new MemoryStore { Value = Collection(FirstId, Entry(FirstId, "FirstPlayer")) };
+        using var first = new MinecraftAccountService(Options, new RoutedClient(new())
+            { SignInId = SecondId, SignInName = "SecondPlayer" }, store);
+        using var second = new MinecraftAccountService(Options, new RoutedClient(new()), store);
+        Assert.Single((await second.LoadAccountsAsync()).Accounts);
+
+        await first.SignInAsync();
+        await second.SelectAccountAsync(FirstId);
+        Assert.Equal(2, (await first.LoadAccountsAsync()).Accounts.Count);
+        await first.RemoveAccountAsync(SecondId);
+        await second.GetSessionForAccountAsync(FirstId);
+
+        Assert.Single((await first.LoadAccountsAsync()).Accounts);
+        await Assert.ThrowsAsync<MinecraftAuthenticationException>(() => second.GetSessionForAccountAsync(SecondId));
+    }
+
     /// <summary>账号列表只读取公开档案，初始化不能刷新或登录任何账号。</summary>
     [Fact]
     public async Task AccountListLoadsLocallyWithoutAuthenticating()

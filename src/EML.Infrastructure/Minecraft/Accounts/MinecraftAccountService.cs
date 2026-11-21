@@ -12,7 +12,6 @@ public sealed class MinecraftAccountService : IMinecraftAccountManager, IDisposa
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly HttpClient? _ownedHttp;
     private readonly Dictionary<string, MinecraftAccountSession> _sessions = new(StringComparer.OrdinalIgnoreCase);
-    private bool _loaded;
     private StoredMinecraftAccounts _stored = new();
     public bool IsConfigured => _options.IsConfigured;
 
@@ -45,6 +44,7 @@ public sealed class MinecraftAccountService : IMinecraftAccountManager, IDisposa
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            using var lease = await _store.AcquireAsync(cancellationToken).ConfigureAwait(false);
             await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
             return new(_stored.Accounts.Select(account => account.Account).ToArray(), _stored.ActiveAccountId);
         }
@@ -58,10 +58,14 @@ public sealed class MinecraftAccountService : IMinecraftAccountManager, IDisposa
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
+            // 不在等待浏览器授权时占用其他 EML 副本；提交时再次读取以保留期间的修改。
+            using (await _store.AcquireAsync(cancellationToken).ConfigureAwait(false))
+                await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
             var tokens = await _client.SignInAsync(progress, cancellationToken).ConfigureAwait(false);
             var session = await _client.ExchangeAsync(tokens, cancellationToken).ConfigureAwait(false);
             var account = new StoredMinecraftAccount { ClientId = _options.ClientId, Account = session.Account, RefreshToken = tokens.RefreshToken };
+            using var lease = await _store.AcquireAsync(cancellationToken).ConfigureAwait(false);
+            await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
             var updated = Upsert(account, session.Account.Id);
             if (updated.Accounts.Count > WindowsMinecraftAccountStore.MaximumAccounts)
                 throw new MinecraftAuthenticationException($"最多保存 {WindowsMinecraftAccountStore.MaximumAccounts} 个正版账号，请先移除不再使用的本机账号。");
@@ -79,6 +83,7 @@ public sealed class MinecraftAccountService : IMinecraftAccountManager, IDisposa
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            using var lease = await _store.AcquireAsync(cancellationToken).ConfigureAwait(false);
             await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
             var account = FindAccount(id);
             if (!SameId(_stored.ActiveAccountId, account.Account.Id))
@@ -95,6 +100,7 @@ public sealed class MinecraftAccountService : IMinecraftAccountManager, IDisposa
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            using var lease = await _store.AcquireAsync(cancellationToken).ConfigureAwait(false);
             await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
             if (_stored.ActiveAccountId is not { } id)
                 throw new MinecraftAuthenticationException("请先在“微软账号”页面登录并选择默认账号，或在实例中选择正版账号。");
@@ -111,6 +117,7 @@ public sealed class MinecraftAccountService : IMinecraftAccountManager, IDisposa
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            using var lease = await _store.AcquireAsync(cancellationToken).ConfigureAwait(false);
             await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
             return await GetSessionCoreAsync(id, cancellationToken).ConfigureAwait(false);
         }
@@ -143,6 +150,7 @@ public sealed class MinecraftAccountService : IMinecraftAccountManager, IDisposa
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            using var lease = await _store.AcquireAsync(cancellationToken).ConfigureAwait(false);
             await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
             await RemoveCoreAsync(id, cancellationToken).ConfigureAwait(false);
         }
@@ -155,6 +163,7 @@ public sealed class MinecraftAccountService : IMinecraftAccountManager, IDisposa
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            using var lease = await _store.AcquireAsync(cancellationToken).ConfigureAwait(false);
             await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
             if (_stored.ActiveAccountId is { } id) await RemoveCoreAsync(id, cancellationToken).ConfigureAwait(false);
         }
@@ -198,14 +207,20 @@ public sealed class MinecraftAccountService : IMinecraftAccountManager, IDisposa
         _stored = updated;
     }
 
-    /// <summary>只在成功读取和验证后标记已加载；损坏文件可重试，不能被一次新登录覆盖。</summary>
+    /// <summary>在共享锁内读最新凭证；其他进程移除或更新的账号不再使用当前进程的旧会话。</summary>
     private async Task LoadCoreAsync(CancellationToken token)
     {
-        if (_loaded) return;
         var stored = await _store.LoadAsync(token).ConfigureAwait(false) ?? new();
         WindowsMinecraftAccountStore.Validate(stored);
+        foreach (var (id, _) in _sessions.ToArray())
+        {
+            var previous = _stored.Accounts.FirstOrDefault(account => SameId(account.Account.Id, id));
+            var current = stored.Accounts.FirstOrDefault(account => SameId(account.Account.Id, id));
+            if (previous is null || current is null || previous.RefreshToken != current.RefreshToken ||
+                previous.ClientId != current.ClientId || previous.Account != current.Account)
+                _sessions.Remove(id);
+        }
         _stored = stored;
-        _loaded = true;
     }
 
     /// <summary>已移除或不存在的身份明确失败，不回退为默认账号或列表中的另一项。</summary>
