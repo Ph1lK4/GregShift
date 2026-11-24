@@ -1,145 +1,147 @@
 # GregShift
 
-<img src="src/EML.App/Assets/Branding/eml.png" alt="GregShift logo" width="112" />
+<img src="src/EML.App/Assets/Branding/eml.png" alt="GregShift logo" width="96" />
 
-[简体中文](README.md) | English
+**A Windows launcher for GT New Horizons (GTNH) players in China.**
 
-GregShift, formerly EML, is a Windows launcher built for **GT New Horizons (GTNH) players in China**.
+[简体中文](README.md) | English · [Test releases](https://github.com/Ph1lK4/EML/releases) · [Documentation](#documentation) · [Report an issue](https://github.com/Ph1lK4/EML/issues)
 
-A GTNH playthrough can last through several pack updates. GregShift handles pack installation, Java setup and mod management, and helps move saves, maps and personal settings from an old instance to a new one. Less time moving files around, more time playing.
+A GTNH world can outlast several pack versions. When an update arrives, your saves, maps and settings are still in the old instance. GregShift handles pack installation, Java setup and launching, then helps carry your local data into a separate, newer instance without another round of moving files by hand.
 
-It also supports other common modpack formats, downloads from Modrinth and CurseForge, and vanilla Minecraft Java Edition. This is an independently maintained third-party project, **not an official GTNH, Mojang or Microsoft launcher**.
+Formerly EML, the project is maintained by K4ssia. It also supports other common modpacks and vanilla Minecraft Java Edition. **It is not an official GTNH, Mojang or Microsoft launcher.**
 
-**Still in 1.0-RC2 testing.** Not all environments have been verified. This README describes the current source; the published RC2 package may not include later changes. Check the notes for the package you download and the [release guide](docs/release-rc2.md) for upgrade instructions.
+> The current public test release is **1.0-RC2 and is unsigned**. It is not a stable release. This README covers the current source, including changes that are not in the published RC2 package. Check the notes for the package you download, and back up your saves before testing or upgrading.
 
-The rename does not move existing data. Release packages still start with `EML.exe` in the root, with application files and bundled .NET in `app/`. Instances and settings stay in their existing locations; code projects and some paths still use EML.
+## Interface preview
 
-## Screenshots
+The instance library, GTNH recommended mods and upgrade page are screenshots of the running app, with the local path redacted. The tools directory, download center and light-theme previews were rendered off-screen using the current source's actual UI controls and demo data. These images do not establish full online-service or game acceptance testing. The app is currently mainly in Chinese; this English README does not imply an English UI.
 
-Screenshots are from an earlier Chinese test build and may differ from the current interface. Personal details have been redacted.
-
-![GregShift local instances and launch modes](docs/images/main.png)
+![GregShift instance library, launch identity and sidebar](docs/images/main.png)
 
 <details>
-<summary>GTNH hub: recommended mods</summary>
+<summary>GTNH recommended mods, upgrades and tools</summary>
 
-![Recommended mod catalog in the GTNH hub](docs/images/gtnh.png)
+Browse by category and rule group, then check the target pack version, Java and dependencies before installing.
+
+![GTNH recommended-mod catalog, category filters and pre-installation confirmation](docs/images/gtnh.png)
+
+Start from the old instance and choose a newer pack in a separate dialog. There is no need to install both versions first.
+
+![Starting an upgrade from an old GTNH instance](docs/images/gtnh-upgrade.png)
+
+Seven tools have their own page, independent of the selected instance.
+
+![GTNH tools directory](docs/images/gtnh-tools.png)
 
 </details>
 
 <details>
-<summary>GTNH player-data migration guide</summary>
+<summary>Download center and light theme</summary>
 
-![GTNH player-data migration guide screen](docs/images/migration.png)
+![File transfers, speed, priority and download details](docs/images/download-center.png)
+
+![Light theme, colors and static wallpaper settings](docs/images/appearance-light.png)
 
 </details>
 
-## What you can do
+## GTNH: install, play, upgrade
 
-### Install and play
+### Packs and add-ons
 
-- Download modpacks from Modrinth or CurseForge, or install vanilla Minecraft from Mojang's version catalog. Import Prism ZIPs, Modrinth `.mrpack` files, CurseForge ZIPs and supported game-directory ZIPs; dependency downloads start after import.
-- Copy supported instance folders from launchers such as Prism and the Modrinth App without making a ZIP first. The original instance stays in place, and launcher account credentials are not imported.
-- Detect installed Java runtimes or download a suitable one from the Java page. If an instance has no compatible Java, GregShift asks before downloading and installing it. Existing Java installations and system environment variables are left alone.
-- Add and manage multiple Microsoft accounts, then choose an account or offline mode for each instance. Once the game process starts, GregShift remembers that instance's account, name and mode. Changing the default account does not overwrite an instance's existing choice; authentication failure never silently switches accounts or falls back to offline mode.
-- Online mode shows the selected Minecraft name and skin avatar. Offline mode takes a player name and uses a built-in Steve avatar. Avatar loading failures do not block sign-in or launching.
-- Set Java, memory and JVM options per instance and view game logs. Java and JVM settings require an explicit save.
+Choose a specific Prism/MultiMC client pack from the integrated China-based mirror, then download and import it. Supported instance folders from other launchers can also be copied directly, without making a ZIP. The original instance stays in place.
 
-### GTNH hub
+The GTNH hub includes categorized mods, resource packs, shaders and loaders with Chinese descriptions, source links and warnings. Supported projects offer specific release files to install. Modernity's main textures, light UI and dark UI have separate entries. Mods outside the Stargate rules are marked, but catalog inclusion does not guarantee compatibility or install the project's dependencies.
 
-- Choose a specific Prism/MultiMC client pack from the integrated China-based mirror, then download, import and prepare a new instance.
-- Browse categorized mods, resource packs and shaders with Chinese descriptions, source links and compatibility notes. Supported release files can be installed into a selected GTNH instance.
-- Start an upgrade from your old instance and choose a newer pack and Java variant in a separate dialog, with test releases available if needed. Confirm to download and prepare it without leaving the upgrade page, then review which player data and extra mods to carry over. Cancelling the dialog starts no download; you do not need to install the newer instance beforehand.
+### Upgrade from an old instance
 
-### GTNH tools
+Open **GTNH hub → Version upgrade** and select the instance containing your player data:
 
-- Open the separate tools page directly below the GTNH hub in the sidebar. Search the flowchart catalog and open a chart on its own detail page. Returning keeps your filters and browsing position; uncreated entries stay in the catalog and are marked as pending.
-- Flowcharts load declarative data on demand and use a native interactive canvas for zooming, panning, group highlighting and Chinese/English views where supplied by the source. Successfully cached charts work offline. Each cache keeps its source, revision when available, retrieval time and license information; website icons and detailed recipe popups are not included.
-- If the wiki rejects direct retrieval, open the original page inside the launcher, wait for it to display normally and explicitly read it into the native chart. The data goes through the same validation before caching; this does not bypass the site's access controls.
-- The online quest book remains an embedded website and does not read or sync game progress. The quest book, online catalog updates and explicitly opening the original page need a network connection and WebView2; native charts do not. Chart data keeps its original license, separate from the launcher's GPL. See the [tools guide](docs/gtnh-tools.md).
+1. Open the version-selection dialog and choose a higher pack version and Java variant.
+2. Confirm to download, import and prepare a **separate new instance**, without leaving the upgrade page or overwriting the old one. You can also use an existing newer local instance.
+3. Test-launch the new pack and exit normally. Close both games before choosing what to migrate.
+4. Review the file plan, conflicts and warnings, then confirm the copy. Test the migrated data in-game afterwards.
 
-### Mods and add-ons
+You can select worlds, NEI records, JourneyMap maps, ore-vein and Thaumcraft-node data, server lists and selected personal settings. A server-player preset covers local client data. If the old instance is elsewhere, use “Import old instance (with local data)” first; downloading the original pack again will not recover your play history.
 
-- Search Modrinth and CurseForge by Minecraft version, loader and other filters. Mods and modpacks open in separate detail pages with icons, descriptions and releases. Returning to the results keeps your filters and browsing position.
-- In online mod search, choose whether to include required dependencies and select optional dependencies individually. Review the installation plan before downloading.
-- Add local mods, or explicitly take over untracked extra mods. Enable, disable, move to the recovery area or restore supported managed files. Mods declared by the imported pack remain protected; this is not an unrestricted editor for every file in `mods`.
+**Extra mods can come along, but none are selected by default.** Recorded additions are distinguished from files whose origin needs confirmation. You must choose them and accept the compatibility risk. Old mod files are copied as-is, without upgrades or dependency installation. Duplicates already present in the new pack are kept, and a mod being absent from the new version is not enough to classify it as a user addition.
 
-### Downloads and instance care
+The old instance's game files are left alone. Destination files are backed up before changes, and conflicting worlds get separate folders rather than being merged. The last migration can be undone when its recovery conditions still hold, without forcing an overwrite of newer progress.
 
-- Manage file transfers in one download center: pause, resume, cancel, set queue priority, adjust concurrency and cap total bandwidth. Compatible downloads can reuse verified cache entries or resume partial transfers when the source supports it.
-- Check cache usage in download settings and confirm cleanup of unused complete entries and diagnostic copies. Manual cleanup keeps resumable fragments and does not delete instances, original pack archives or backups.
-- Find instances in the launcher's `instances/` folder, inspect their details, rename or delete them, or export a ZIP backup. Right-click an instance or use the “···” beside the launch button for its management tools.
-- Run quick or full integrity checks that account for file sources, accepted user changes and recorded mod enable/disable/removal choices. Normal launches check essential startup requirements without hashing the whole pack again. Export checks use the current import limits before publishing a backup.
+**This moves player data and language preferences, not old translation packs, wholesale pack configs or recipe scripts. Server upgrades and SFTP migration are not implemented.** A completed copy is not a compatibility guarantee. Follow GTNH's update guidance, use intermediate versions where needed and keep an independent backup.
 
-### Interface and appearance
+See the [hub guide](docs/gtnh-hub.md) and [player-data migration guide](docs/gtnh-player-data-migration.md).
 
-- Choose dark, light or the Windows app theme, with custom accent and background colors.
-- Use a local PNG or JPG/JPEG wallpaper and adjust its overlay. Only static images are supported, not video. Inputs, menus and dialogs keep solid backgrounds for readability.
-- Buttons, navigation and page transitions have subtle hover, press and transition effects that respect Windows animation and high-contrast settings. Startup scans update page status without result popups.
+## GTNH tools
 
-Appearance settings are saved locally. See the [appearance guide](docs/appearance.md). The app currently uses a mainly Chinese interface; this English README does not mean a full English UI is available.
+The tools page sits below the GTNH hub in the sidebar. No instance is required.
 
-## Moving to a newer GTNH version
+| Tool | What it does | How it runs |
+| --- | --- | --- |
+| Process flowcharts | Search the catalog; pan and zoom; view item icons, animated sprites and recipe cards. Uncreated entries remain marked as pending. | Native canvas; fetches on demand, cached content available offline |
+| Online quest book | Browse, search and select reference versions without syncing game progress | Embedded browser; online |
+| Production planner | GTNH Planner with Chinese text assistance, a top-level Chinese item search, and plan JSON import/export | Embedded browser; online |
+| Ore-processing regex | Generate filter-card expressions by ore and processing route; copy results and save plans | Native; offline |
+| Thaumcraft research helper | Find aspect connection chains and adjust available aspects and weights | Native; offline |
+| GTNH seed map | Enter a seed manually to view the site's terrain and ore prediction layers | Embedded browser; online |
+| Online Thaumonomicon | Focused research directory and interactive graph, with search, categories and details | Embedded browser; online |
 
-In the GTNH hub, open version upgrading and select **the old instance containing your player data**. You do not need to have the new version installed yet.
+Flowcharts use the source page's chart and recipe data; they do not invent recipes from connections or provide a complete recipe database. Network restrictions or verification pages may affect the first load. The research helper finds aspect chains, not solutions to an entire research note. Check which GTNH version the reference data covers.
 
-If the old instance is still in another launcher, copy a supported folder with “Import from another launcher,” or export it and use “Import old instance (with local data)” in the GTNH hub. The folder or archive must actually contain your saves and maps; downloading the original pack again will not recover your play history.
+Web tools need **Microsoft Edge WebView2 Evergreen Runtime**, which is separate from the bundled .NET runtime. Use the launcher's top search box for Chinese Planner searches; untranslated text stays in its original language. Export important plans: **the plans in `planner-webview2` must not be treated as disposable cache**.
 
-Choose a higher-version Prism client pack and Java variant in the version-selection dialog. Confirm to download, import and prepare a **separate new instance** while staying on the upgrade page. If you already have a prepared newer instance, the local-instance option is still available. Test-launch the new version, exit normally and close both games before continuing to the data selection and file preview:
+See [GTNH tools](docs/gtnh-tools.md), [native tools and data sources](docs/gtnh-native-tools.md), and [Planner attribution](docs/gtnh-planner-notices.md). Third-party websites, charts, dictionaries and images keep their own licenses, separate from the launcher's GPL.
 
-- Worlds, NEI records, JourneyMap maps, ore-vein and Thaumcraft-node data, selected personal settings and server lists.
-- A server-player preset for local client data, without copying a server world.
-- Your language preference and individually selected extra mods. All extra mods are unchecked by default and require a separate risk confirmation. Entries distinguish recorded additions from files whose origin you must confirm; a bundled Prism mod is not automatically treated as a player addition. Existing duplicates in the new version stay in place. Selected old mod files are copied as-is, without updating them or installing dependencies.
+## Everyday features
 
-GregShift leaves the old instance's game files intact and backs up destination files before changing them. Conflicting worlds are kept in separate folders rather than merged. The last migration can be undone when its recovery conditions still hold; recovery refuses to overwrite files changed afterwards.
-
-**This upgrades a GTNH client and carries over selected data; it does not upgrade a server.** It preserves your language preference, not an old Chinese translation pack. Completion means the data has been copied and still needs a trial run, not that the world or extra mods are compatible. Follow GTNH's update guidance and verify your saves when moving between major versions. See the [migration guide](docs/gtnh-player-data-migration.md) for supported files and recovery details.
+- **Instance installation:** Download Modrinth and CurseForge packs or Mojang's vanilla releases. Import Prism ZIPs, `.mrpack`, CurseForge ZIPs and supported generic ZIPs, or copy supported Prism, Modrinth App and other instance folders. Supported content and runtime dependencies are prepared after import.
+- **Accounts and launching:** Manage multiple Microsoft accounts or use an offline player name. Each instance remembers its last launch identity and mode, with skin avatars or Steve. Authentication failure never silently switches to offline mode. Java, memory and JVM options are configured per instance.
+- **Java:** Detect local runtimes or download a suitable version. If compatible Java is missing at launch, GregShift asks first and does not change system environment variables.
+- **Mods:** Search online, filter by version and loader, and open a separate detail page. General online mod installation offers required-dependency inclusion and optional-dependency selection. Local extra mods can be disabled, enabled, moved to a recovery area and restored; pack-declared mods remain protected.
+- **Downloads:** View transfers and speed; pause, resume, cancel, and set concurrency, queue priority and total bandwidth limits. Validated caches can be reused and partial files resumed where supported. This does not mean an entire installation automatically resumes after restarting the launcher.
+- **Instance care:** Right-click an instance or use “···” for details, file checks, repair, logs and ZIP exports. Integrity rules distinguish file sources and accepted user changes. Normal launches do not hash the whole pack again.
+- **Appearance:** Dark, light and system themes, custom colors and static wallpaper. Subtle interaction animations respect Windows animation and high-contrast settings. Startup scans update the page without result popups.
 
 ## Getting started
 
-1. Extract the Windows x64 package in full to a folder you can write to, then run `EML.exe` from the root. Do not run it inside an archive viewer or copy only the EXE. The launcher includes its required .NET runtime; Visual Studio and the .NET SDK are not needed. Java is separate.
-2. Download a pack from the GTNH hub or “Download instances,” or import a local archive. Wait for preparation to finish and resolve any files marked for manual handling.
-3. Detect or download Java on the Java page. For online mode, sign in on the Microsoft account page first. In launch settings, choose the identity, Java, memory and JVM options for the instance. Online play requires the relevant game entitlement, service access and a network connection; offline mode does not replace that authentication.
-4. Launch the game. If it fails, check the reported reason and runtime logs before changing files.
+Release packages target **Windows x64** and include the launcher's .NET runtime. Visual Studio and the .NET SDK are not required. Java and game files are separate.
 
-Before upgrading or uninstalling, stop the game and launcher tasks, close GregShift, and back up the data you need **outside the application folder**. That folder may contain worlds, maps and migration backups. An exported instance ZIP is not a replacement for a full launcher-folder backup. Follow the [upgrade guide](docs/release-rc2.md) or [uninstallation guide](docs/uninstall.md).
+1. Download a test package from [GitHub Releases](https://github.com/Ph1lK4/EML/releases). Extract it in full to a writable directory and run **`EML.exe`** from the root. Do not run it inside an archive viewer, copy only the EXE, or remove `app/`.
+2. Download GTNH in its hub, or download/import another instance. Wait for preparation to finish and resolve any files marked for manual handling.
+3. Detect or download Java. For online mode, sign in first. Check the instance's identity, Java and memory in launch settings, save the parameters, then launch.
+4. Use a copy of your save for first runs, updates and migrations. If something fails, check the result message and the log for that run.
 
-## Current status and limits
+Renaming EML to GregShift does not move existing data; some executable names and paths still use EML. Before updating the launcher, stop games and tasks and follow the [RC2 upgrade guide](docs/release-rc2.md). **Do not empty the old directory before extracting an update.** Instance ZIP exports exclude shared runtime dependencies outside the instance, account credentials and full migration backups; they are not a replacement for backing up the whole data directory.
 
-- RC2 is a test release, not a promise that every pack and PC works. See the [RC2 release guide](docs/release-rc2.md) for testing boundaries and acceptance steps, and the [RC1 verification notes](docs/release-rc1-verification.md) for historical results. Clean-machine and full end-to-end testing are not complete.
-- Some platform files require manual handling. For eligible CurseForge mod files without a direct download, GregShift tries a Modrinth file with the same official SHA-1 and size, not a similarly named mod or a different version.
-- The GTNH catalog is not a guarantee of compatibility or automatic installation. Some entries open an author page, and recommended-project dependencies are not installed automatically. Resource packs and shaders still need to be enabled in-game.
-- GTNH mirror archives currently have no official-hash verification. See the [GTNH hub guide](docs/gtnh-hub.md) for the checks that are performed.
-- Chinese names and summaries cover selected mods. Modpack descriptions retain Chinese text supplied through the platform API; English-only descriptions remain in English. GregShift does not automatically translate every project.
-- Pack and loader support depends on available metadata and implemented installers. Completing a download or exporting a ZIP does not prove that the game will launch; shared dependencies outside an instance are not included in its ZIP export.
+## Before you use it
+
+- **Real-world testing is still needed.** Automated checks do not cover every PC, network, pack or server. Clean-machine, real multi-account and full end-to-end acceptance tests remain; not every instance is guaranteed to launch.
+- **Some downloads need manual handling.** When a CurseForge file has no direct download, GregShift only tries a Modrinth file with the same official SHA-1 and size. It does not substitute by similar name or turn off integrity checks. Not every ZIP or loader supports automatic preparation.
+- **Mirror checks are not official authentication.** GTNH mirror archives are checked for size, format and paths, but currently have no official-hash verification. A local cache digest is not an official checksum.
+- **Chinese coverage varies.** Selected mods have curated Chinese names and summaries. Pack descriptions retain Chinese or original text supplied by the platform API; not every description is translated.
+- **Offline mode does not replace ownership or authentication.** Online launching and authenticated servers need the relevant game entitlement, service access and network connection. Check server rules before adding mods, packs or shaders; resource packs and shaders still need enabling in-game.
+- **Current packages are unsigned.** CI checks, checksums and a GitHub release page are not Windows code signing or security certification. If security software blocks a package, check its source and the warning instead of disabling protection.
 
 ## Documentation
 
-Feature guides are currently in Chinese:
+Guides are currently in Chinese:
 
-- [GTNH hub](docs/gtnh-hub.md) · [Player-data migration](docs/gtnh-player-data-migration.md) · [GTNH tools](docs/gtnh-tools.md)
-- [Instance downloads](docs/instance-downloads.md) · [Download center](docs/download-center.md)
-- [Online mods](docs/online-mod-management.md) · [Local mod management](docs/local-mod-management.md)
-- [Java downloads](docs/java-downloads.md) · [Launch settings](docs/launching.md) · [Microsoft sign-in](docs/microsoft-login.md)
-- [Appearance settings](docs/appearance.md) · [Interface and navigation](docs/ui-navigation.md)
-- [File integrity](docs/gameplay-file-policy.md) · [Instance backups](docs/instance-backups.md)
-- [Importing folders from other launchers](docs/folder-import.md)
-- [RC2 release and upgrades](docs/release-rc2.md) · [RC1 historical release](docs/release-rc1.md) · [RC1 verification record](docs/release-rc1-verification.md)
+- GTNH: [Hub and add-ons](docs/gtnh-hub.md) · [Upgrading and migration](docs/gtnh-player-data-migration.md) · [Tools](docs/gtnh-tools.md) · [Native tools](docs/gtnh-native-tools.md)
+- Installation: [Pack downloads](docs/instance-downloads.md) · [Folder import](docs/folder-import.md) · [Java downloads](docs/java-downloads.md) · [Download center](docs/download-center.md)
+- Playing: [Microsoft accounts](docs/microsoft-login.md) · [Launch settings and logs](docs/launching.md) · [Online mods](docs/online-mod-management.md) · [Local mods](docs/local-mod-management.md)
+- Maintenance: [Appearance](docs/appearance.md) · [File changes and integrity](docs/gameplay-file-policy.md) · [Backup boundaries](docs/instance-backups.md) · [Launcher upgrades](docs/release-rc2.md) · [Uninstalling and keeping data](docs/uninstall.md)
 
-## Contact, privacy and security
+## Feedback, privacy and security
 
-Maintainer: **K4ssia**. Contact **[477619464@qq.com](mailto:477619464@qq.com)** for questions, privacy requests or private vulnerability reports. For a bug report, include the launcher and pack versions, Java version, reproduction steps and only the relevant, redacted error details. Do not send credential files, tokens, full private logs or instances, or post sensitive vulnerability details publicly.
+Maintainer: **K4ssia**. Report ordinary bugs through [GitHub Issues](https://github.com/Ph1lK4/EML/issues). For contact, privacy questions or private vulnerability reports, email **[477619464@qq.com](mailto:477619464@qq.com)**.
 
-Instances, settings and account credentials are stored locally. Sign-in, search, skin avatars, project icons and downloads connect to the relevant third-party services. There is currently no maintainer-operated data collection server, donation service or separate feedback platform.
+Include the launcher, pack and Java versions, steps to reproduce, and relevant error details. Redact logs before sharing. Do not publish tokens, account files, private server details or full instances. Please report security vulnerabilities privately.
 
-[Privacy](PRIVACY.md) · [Security reporting](SECURITY.md) · [Uninstallation and keeping player data](docs/uninstall.md). These documents include English summaries; some still use the former name EML.
+Instances, settings and sign-in records are stored locally. Sign-in, search, avatars, downloads and web tools still contact third-party services. Microsoft credentials use Windows current-user DPAPI encryption; this does not isolate them from every malicious process running as the same user. There is currently no maintainer-operated data collection server.
 
-## License
+[Privacy](PRIVACY.md) · [Security reporting](SECURITY.md) · [Code signing policy](docs/code-signing.md) · [Uninstallation](docs/uninstall.md)
 
-GregShift is licensed under the **GNU General Public License, version 3 or any later version (`GPL-3.0-or-later`)**. See [LICENSE](LICENSE).
+## License and credits
 
-Minecraft, modpacks, mods, resource packs, Java and other third-party components retain their own licenses and terms.
+GregShift is licensed under **GPL-3.0-or-later**; see [LICENSE](LICENSE). Minecraft, packs, mods, resource packs, Java and other third-party content retain their own licenses and terms.
 
-## Code signing policy
-
-The current `1.0-RC2` package and earlier RC1 packages are **unsigned**. The SignPath Foundation application was not approved, and no signing service is active. GitHub Actions runs build and test checks, not code signing. **K4ssia** is responsible for code review and signing approval; see the [code signing policy](docs/code-signing.md) for the current status and planned controls.
+Thanks to GTNH, the GTNH Chinese Wiki and community authors, and the maintainers of the download services, tools and open-source components used here. GregShift brings these resources together with local instance management; credit and licensing remain with their authors.
