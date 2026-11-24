@@ -28,6 +28,18 @@ instances、settings、runtimes、cache 等目录，不放进 app。
 - Java、Minecraft 和整合包不在启动器包里，游戏前仍需下载。
 - 正版模式需要自己的有效 Minecraft 账号，离线名字不等于正版登录。
 - 不要求管理员权限。首次下载需要网络和足够磁盘空间。
+- 左侧“GTNH 专区”下方的“GTNH 工具”提供流程图和在线任务书。
+  流程图点击进入详情，由本机画布绘制；成功缓存后可离线查看。
+  未创建的条目保留名称并提示等待更新；不包含原站图标和详细配方弹窗。
+  直接读取被拒绝时，可在此页查看原站，页面正常显示后主动
+  “读取为本地图表”；数据仍会校验，不绕过站点访问限制。
+- 在线任务书、目录联网更新和显式查看原站另需网络及
+  Microsoft Edge WebView2 Evergreen Runtime。任务书不读取游戏进度。
+  缺少运行时会在工具页提示；不会自动安装，不影响本地图表及其他功能。
+  请从 Microsoft 官方页面获取：https://developer.microsoft.com/microsoft-edge/webview2/
+  图表缓存位于 cache/gtnh-tools/flowcharts，网页数据位于
+  cache/gtnh-tools/webview2。数据保留原作者许可，不改用启动器 GPL；
+  来源、修订（如有）、读取时间和许可说明可在图表详情查看。
 
 已有 RC1 或 RC1-Logo1？
 

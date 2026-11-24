@@ -18,34 +18,43 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
     private readonly Action _filesChanged;
     private readonly Action<Uri>? _openWebsite;
     private readonly IOperationNotifications _notifications;
+    private readonly IInstanceMigrationDialogs? _upgradeDialogs;
     private readonly HashSet<Task> _pending = [];
     private readonly HashSet<string> _recoveryOnly = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _targetCancellation, _releaseCancellation;
     private string? _preservedTargetPath;
+    private string? _upgradeSourcePath;
+    private GtnhInstanceInfo? _upgradeDownloadSource, _preparedUpgradeSource, _preparedUpgradeTarget;
     private int _targetRevision, _releaseRevision, _installRevision;
-    private bool _active, _closing, _disposed, _syncingSelection, _requiresTargetSelection, _targetsDirty = true;
+    private bool _active, _closing, _disposed, _syncingSelection, _requiresTargetSelection, _upgradeOperation, _targetsDirty = true;
 
     /// <summary>接收已有实例模型和服务；构造时不联网或扫描玩家文件。</summary>
     public GtnhHubViewModel(InstancesViewModel instances, IMinecraftInstanceMigrationService migration,
         IGtnhAddonService addons, Action filesChanged, Action<Uri>? openWebsite = null,
-        IOperationNotifications? notifications = null, IGtnhPackService? packs = null)
+        IOperationNotifications? notifications = null, IGtnhPackService? packs = null, IInstanceMigrationDialogs? upgradeDialogs = null)
     {
         Instances = instances; _migration = migration; _addons = addons;
         _filesChanged = filesChanged; _openWebsite = openWebsite;
         _notifications = notifications ?? NullOperationNotifications.Instance;
+        _upgradeDialogs = upgradeDialogs;
         if (packs is not null)
+        {
             Packs = new GtnhPackDownloadViewModel(packs,
-                (release, progress, token) => instances.DownloadInstanceAsync(
-                    (downloadProgress, cancellation) => packs.PrepareAsync(release.Id, downloadProgress, cancellation), progress, token),
-                () => !instances.IsBusy, openWebsite, _notifications);
+                (release, progress, token) => DownloadUpgradePackAsync(packs, release, progress, token),
+                () => !instances.IsBusy && !_upgradeOperation && !IsInstalling && !IsImportingOldInstance, openWebsite, _notifications);
+            Packs.PropertyChanged += OnPacksChanged;
+        }
         ApplyCatalogFilter();
         instances.PropertyChanged += OnInstancesChanged;
+        instances.UpgradePreparationRequested += OnUpgradePreparationRequested;
         instances.Instances.CollectionChanged += OnInstanceCollectionChanged;
     }
 
     public InstancesViewModel Instances { get; }
     /// <summary>下载本体创建新实例，不依赖已有 GTNH 目标或迁移选择。</summary>
     public GtnhPackDownloadViewModel? Packs { get; }
+    /// <summary>资料阅读不依赖目标实例，也不占用安装互斥锁。</summary>
+    public GtnhToolsViewModel Tools { get; } = new();
     public ObservableCollection<GtnhInstanceInfo> Targets { get; } = [];
     public ObservableCollection<GtnhAddon> Addons { get; } = [];
     public ObservableCollection<GtnhAddonRelease> Releases { get; } = [];
@@ -62,19 +71,27 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool isLoadingReleases;
     [ObservableProperty] private bool isInstalling;
     [ObservableProperty] private bool isImportingOldInstance;
+    [ObservableProperty] private bool isPreparingUpgrade;
     [ObservableProperty] private bool compatibilityConfirmed;
     [ObservableProperty] private string targetStatus = "进入专区后识别本地 GTNH 实例。";
+    [ObservableProperty] private string upgradeStatus = "选择旧实例，点击“升级 GTNH”，直接选择并下载新版，无需提前导入新版。";
+    [ObservableProperty] private bool upgradeServerClient;
     [ObservableProperty] private string releaseStatus = "选择推荐模组，再选择与实例适配的发行版本。";
     [ObservableProperty] private string installStatus = "确认目标实例和发行说明后再安装。";
     [ObservableProperty] private string downloadText = "";
     [ObservableProperty] private double downloadPercent;
-    public bool CanInteract => !_closing && !Instances.IsBusy && !IsInstalling && !IsImportingOldInstance && !IsLoadingTargets;
+    public bool CanInteract => !_closing && !Instances.IsBusy && !IsInstalling && !IsImportingOldInstance && !IsLoadingTargets && !IsPreparingUpgrade && !_upgradeOperation && Packs?.IsInstalling != true;
     public bool HasTarget => SelectedTarget is not null && SamePath(SelectedTarget.InstancePath, Instances.SelectedInstance?.InstancePath);
+    public bool HasPreparedUpgrade => _preparedUpgradeSource is not null && _preparedUpgradeTarget is not null;
+    public string UpgradeSourceName => (_preparedUpgradeSource ?? _upgradeDownloadSource ?? SelectedTarget)?.Name ?? "请在页面上方选择旧实例";
+    public string UpgradeSourceVersion => (_preparedUpgradeSource ?? _upgradeDownloadSource ?? SelectedTarget)?.Version ?? "";
+    public string UpgradeTargetName => _preparedUpgradeTarget is { } target ? $"{target.Name} · {target.Version}" : "选择要下载的新版本";
     public bool IsRecommendations => SelectedSection == 0;
     public bool IsMigration => SelectedSection == 1;
     public bool IsResourcePacks => SelectedSection == 2;
     public bool IsShaders => SelectedSection == 3;
     public bool IsPackDownloads => SelectedSection == 4;
+    public bool IsIndependentSection => IsPackDownloads;
     public bool IsCatalogPage => SelectedSection is 0 or 2 or 3;
     public IReadOnlyList<string> RuleFilters { get; } = ["全部规则分组", "常规分类", "非星门规则"];
     public IReadOnlyList<string> Categories => ["全部分类", .. _addons.Addons
@@ -86,7 +103,7 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
     public bool HasSelectedAddon => SelectedAddon is not null;
     public bool IsNonStargateAddon => SelectedAddon?.IsNonStargate == true;
     /// <summary>旧实例入口只准备迁移来源，不从普通安装包推断玩家记录。</summary>
-    public string MigrationImportHint => "导入后会自动补全依赖，再选择新版作为接收方；不会自动开始迁移。";
+    public string MigrationImportHint => "导入后会自动补全依赖；请在上方选择带游玩记录的旧实例。不会自动开始迁移。";
     public string InstallationHint => SelectedAddon?.Kind switch
     {
         GtnhAddonKind.ResourcePack => "安装到 resourcepacks 后，请在游戏中自行启用并调整加载顺序。不会覆盖已有文件或自动更改 options.txt。",
@@ -109,22 +126,212 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
         _active = active;
         Packs?.SetActive(active && IsPackDownloads);
         if (!active) { CancelReads(); return; }
+        if (IsIndependentSection) return;
         if (!Instances.IsBusy && !IsImportingOldInstance) TargetLoadTask = Track(RefreshTargetsCoreAsync(CancellationToken.None));
         else _targetsDirty = true;
     }
 
     /// <summary>打开推荐模组目录，不改变当前安装目标。</summary>
     [RelayCommand] private void ShowRecommendations() => SelectedSection = 0;
-    /// <summary>打开数据迁移页，继续使用上方选择的新实例。</summary>
-    [RelayCommand] private void ShowMigration() => SelectedSection = 1;
+    /// <summary>从新版下载返回时恢复旧实例，避免把刚下载的空实例当作升级来源。</summary>
+    [RelayCommand] private void ShowMigration()
+    {
+        var path = _upgradeSourcePath;
+        SelectedSection = 1;
+        if (path is not null && !Instances.IsBusy)
+        {
+            var source = Instances.Instances.FirstOrDefault(item => SamePath(item.InstancePath, path));
+            if (source is not null) Instances.SelectedInstance = source;
+            _upgradeSourcePath = null;
+        }
+    }
     /// <summary>打开独立资源包目录，不把资源包作为模组安装。</summary>
     [RelayCommand] private void ShowResourcePacks() => SelectedSection = 2;
     /// <summary>打开光影及加载器目录，安装时仍按各自种类分流。</summary>
     [RelayCommand] private void ShowShaders() => SelectedSection = 3;
     /// <summary>打开国内镜像客户端下载页，空实例库也可以使用。</summary>
-    [RelayCommand] private void ShowPackDownloads() => SelectedSection = 4;
+    [RelayCommand] private void ShowPackDownloads()
+    {
+        if (IsPreparingUpgrade) return;
+        if (Packs?.IsInstalling == true) { SelectedSection = 4; return; }
+        _upgradeDownloadSource = null; Packs?.ConfigureUpgrade(null); SelectedSection = 4;
+        NotifyUpgradeState();
+    }
+    /// <summary>独立弹窗只选择远端新版，确认后留在升级页下载；不跳转到本体下载页。</summary>
+    [RelayCommand(CanExecute = nameof(CanPrepareUpgradeDownload), IncludeCancelCommand = true)]
+    private async Task PrepareUpgradeDownloadAsync(CancellationToken token)
+    {
+        if (!CanPrepareUpgradeDownload()) return;
+        _upgradeSourcePath = Instances.SelectedInstance?.InstancePath;
+        _upgradeDownloadSource = SelectedTarget;
+        _preparedUpgradeSource = null; _preparedUpgradeTarget = null;
+        var source = _upgradeDownloadSource!;
+        IsPreparingUpgrade = true;
+        try
+        {
+            Packs!.ConfigureUpgrade(source);
+            UpgradeStatus = $"旧实例：{source.Name}（{source.Version}）。请在弹窗中选择新版 GTNH；旧实例不会改写。";
+            NotifyUpgradeState();
+            Packs.SetActive(true);
+            var release = await _upgradeDialogs!.ChooseUpgradeVersionAsync(Packs, token);
+            token.ThrowIfCancellationRequested();
+            if (_closing) return;
+            if (release is null) { UpgradeStatus = "已取消选择新版，未开始下载或迁移，旧实例保持不变。"; return; }
+            var actualSource = await _migration.InspectAsync(source.InstancePath, token);
+            token.ThrowIfCancellationRequested();
+            if (_closing) return;
+            if (!SamePath(source.InstancePath, SelectedTarget?.InstancePath) ||
+                !SamePath(source.InstancePath, Instances.SelectedInstance?.InstancePath) ||
+                !Instances.Instances.Any(instance => SamePath(instance.InstancePath, source.InstancePath)) ||
+                actualSource is null || actualSource.Version != source.Version || !SamePath(source.GameDirectory, actualSource.GameDirectory) ||
+                !Packs.Releases.Contains(release) || !Packs.IsUpgrade)
+                throw new InvalidOperationException("升级来源或版本列表已变化，请重新选择。旧实例未修改。");
+            Packs.SelectedRelease = release;
+            if (!Packs.InstallCommand.CanExecute(null))
+                throw new InvalidOperationException("当前无法开始下载，请等待其他实例操作完成后重新选择。");
+            UpgradeStatus = $"正在准备 GTNH {release.Version}；下载、导入和依赖补全完成后，再选择迁移数据。旧实例保持不变。";
+            var operation = Packs.InstallCommand.ExecuteAsync(null);
+            using var registration = token.Register(Packs.InstallCommand.Cancel);
+            await operation;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        { UpgradeStatus = "已取消准备新版；已导入的实例会保留，旧实例未修改，未开始数据迁移。"; }
+        catch (Exception ex)
+        {
+            UpgradeStatus = "新版准备未完成：" + ex.Message;
+            if (!_closing) _notifications.Failure("GTNH 新版准备未完成", ex, source.InstancePath);
+        }
+        finally
+        {
+            Packs?.SetActive(_active && IsPackDownloads);
+            if (!HasPreparedUpgrade)
+            {
+                _upgradeDownloadSource = null; _upgradeSourcePath = null;
+                Packs?.ConfigureUpgrade(null);
+            }
+            IsPreparingUpgrade = false;
+            NotifyUpgradeState();
+            if (_active && !IsIndependentSection && _targetsDirty && CanInteract)
+                TargetLoadTask = Track(RefreshTargetsCoreAsync(CancellationToken.None));
+        }
+    }
+    private bool CanPrepareUpgradeDownload() => CanInteract && HasTarget && _upgradeDialogs is not null && Packs is { IsInstalling: false } &&
+        !_recoveryOnly.Contains(SelectedTarget!.InstancePath);
 
-    /// <summary>复用普通导入及自动补全，结束后按路径恢复新版接收方，不自动发起迁移。</summary>
+    /// <summary>下载、导入和补全成功后只接受本次返回的精确目标，不从状态文本猜成功。</summary>
+    private async Task<string> DownloadUpgradePackAsync(IGtnhPackService service, GtnhPackRelease release,
+        IProgress<FileDownloadProgress> progress, CancellationToken token)
+    {
+        var source = _upgradeDownloadSource;
+        var result = await Instances.DownloadInstanceWithResultAsync(
+            (downloadProgress, cancellation) => service.PrepareAsync(release.Id, downloadProgress, cancellation), progress, token);
+        if (source is null || _closing) return result.Message;
+        if (result.InstancePath is null || !result.LaunchReady || token.IsCancellationRequested)
+        {
+            UpgradeStatus = "新版尚未完成下载、导入或依赖补全；旧实例未修改，未开始数据迁移。\n" + result.Message;
+            NotifyUpgradeState();
+            return UpgradeStatus;
+        }
+        var target = await _migration.InspectAsync(result.InstancePath, token);
+        token.ThrowIfCancellationRequested();
+        if (_closing) return result.Message;
+        if (target is null || !GtnhUpgradePolicy.IsNewerTarget(source, target) || target.Version != release.Version)
+        {
+            UpgradeStatus = "下载包识别出的 GTNH 版本与所选升级版本不符，已保留新旧实例但不会迁移数据。";
+            throw new InvalidOperationException(UpgradeStatus);
+        }
+        await Instances.MigrationStateLoadTask;
+        token.ThrowIfCancellationRequested();
+        if (_closing) return result.Message;
+        _preparedUpgradeSource = source; _preparedUpgradeTarget = target;
+        UpgradeStatus = $"GTNH {target.Version} 已下载、导入并补全。建议先试运行新版，再点击“继续升级”选择玩家数据和额外模组。旧实例保持不变。";
+        SelectedSection = 1;
+        NotifyUpgradeState();
+        return UpgradeStatus;
+    }
+
+    private bool CanContinueUpgrade() => CanInteract && HasPreparedUpgrade && Packs?.IsInstalling != true;
+    /// <summary>准备好的新版沿用原事务迁移；取消保留准备结果，稍后可继续。</summary>
+    [RelayCommand(CanExecute = nameof(CanContinueUpgrade), IncludeCancelCommand = true)]
+    private async Task ContinueUpgradeAsync(CancellationToken token)
+    {
+        if (!CanContinueUpgrade()) return;
+        var source = _preparedUpgradeSource!; var target = _preparedUpgradeTarget!;
+        _upgradeOperation = true; NotifyState();
+        try
+        {
+            await Instances.MigrationStateLoadTask;
+            token.ThrowIfCancellationRequested();
+            if (_closing || Instances.IsBusy) return;
+            var completed = await Instances.MigrateDownloadedUpgradeAsync(source, target,
+                UpgradeServerClient ? GtnhMigrationMode.ServerClient : GtnhMigrationMode.FullClient, token);
+            UpgradeStatus = Instances.MigrationStatus;
+            if (completed)
+            {
+                _preparedUpgradeSource = null; _preparedUpgradeTarget = null; _upgradeDownloadSource = null;
+                _upgradeSourcePath = null; Packs?.ConfigureUpgrade(null);
+            }
+        }
+        catch (OperationCanceledException) { UpgradeStatus = "已取消继续升级，准备好的新版保留，可稍后继续。"; }
+        finally { _upgradeOperation = false; NotifyState(); }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanContinueUpgrade), IncludeCancelCommand = true)]
+    private async Task TrialUpgradeAsync(CancellationToken token)
+    {
+        if (!CanContinueUpgrade()) return;
+        var target = Instances.Instances.FirstOrDefault(item => SamePath(item.InstancePath, _preparedUpgradeTarget!.InstancePath));
+        if (target is null) { UpgradeStatus = "准备好的新版已不在实例列表，请重新检查。"; return; }
+        _upgradeOperation = true; NotifyState();
+        try
+        {
+            Instances.SelectedInstance = target;
+            await Instances.LaunchSettingsLoadTask;
+            token.ThrowIfCancellationRequested();
+            if (_closing || Instances.IsBusy || !SamePath(target.InstancePath, Instances.SelectedInstance?.InstancePath)) return;
+            var task = Instances.LaunchGameCommand.ExecuteAsync(null);
+            using var registration = token.Register(Instances.LaunchGameCommand.Cancel);
+            await task;
+        }
+        catch (OperationCanceledException) { UpgradeStatus = "新版试运行准备已取消。"; }
+        finally { _upgradeOperation = false; NotifyState(); }
+    }
+
+    private void NotifyUpgradeState()
+    {
+        OnPropertyChanged(nameof(HasPreparedUpgrade)); OnPropertyChanged(nameof(UpgradeSourceName));
+        OnPropertyChanged(nameof(UpgradeSourceVersion)); OnPropertyChanged(nameof(UpgradeTargetName));
+        ContinueUpgradeCommand.NotifyCanExecuteChanged(); TrialUpgradeCommand.NotifyCanExecuteChanged();
+    }
+
+    private void OnPacksChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!_closing && e.PropertyName == nameof(GtnhPackDownloadViewModel.IsInstalling))
+        {
+            NotifyState();
+            if (_active && !IsIndependentSection && _targetsDirty && CanInteract)
+                TargetLoadTask = Track(RefreshTargetsCoreAsync(CancellationToken.None));
+        }
+    }
+
+    /// <summary>新版导入与旧版导入共用已验证的自动补全及选择保留逻辑，不触发数据迁移。</summary>
+    [RelayCommand(CanExecute = nameof(CanImportOldInstance), IncludeCancelCommand = true)]
+    private async Task ImportNewInstanceAsync(CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var operation = ImportOldInstanceCommand.ExecuteAsync(null);
+        using var registration = token.Register(ImportOldInstanceCommand.Cancel);
+        await operation;
+    }
+
+    private void OnUpgradePreparationRequested(UpgradeTargetAction action)
+    {
+        if (_closing) return;
+        if (action == UpgradeTargetAction.DownloadNewInstance) Track(PrepareUpgradeDownloadCommand.ExecuteAsync(null));
+        else if (action == UpgradeTargetAction.ImportNewInstance && CanImportOldInstance())
+            Track(ImportNewInstanceCommand.ExecuteAsync(null));
+    }
+    /// <summary>复用普通导入及自动补全，结束后按路径保留已有选择，避免导入新版改变升级来源。</summary>
     [RelayCommand(CanExecute = nameof(CanImportOldInstance), IncludeCancelCommand = true)]
     private async Task ImportOldInstanceAsync(CancellationToken token)
     {
@@ -142,7 +349,7 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
         catch (OperationCanceledException) { }
         finally
         {
-            // 导入会重建实例对象并选中旧版，不能沿用旧引用或让旧版成为迁移接收方。
+            // 导入会重建实例对象并选中新导入项；保留先前选择，升级方向由向导明确确认。
             _requiresTargetSelection = true;
             _preservedTargetPath = targetPath;
             if (!_closing)
@@ -162,7 +369,7 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
         }
     }
     /// <summary>导入来源不要求已有目标；同一时间只允许一项实例写入操作。</summary>
-    private bool CanImportOldInstance() => !_closing && !Instances.IsBusy && !IsInstalling && !IsImportingOldInstance &&
+    private bool CanImportOldInstance() => !_closing && !Instances.IsBusy && !IsInstalling && !IsImportingOldInstance && !IsPreparingUpgrade && !_upgradeOperation && Packs?.IsInstalling != true &&
         Instances.ImportCommand.CanExecute(null);
     /// <summary>目录种类切换后重置分类，保持迁移页索引及目标实例不变。</summary>
     partial void OnSelectedSectionChanged(int value)
@@ -170,7 +377,11 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsRecommendations)); OnPropertyChanged(nameof(IsMigration));
         OnPropertyChanged(nameof(IsResourcePacks)); OnPropertyChanged(nameof(IsShaders)); OnPropertyChanged(nameof(IsCatalogPage));
         OnPropertyChanged(nameof(IsPackDownloads));
+        OnPropertyChanged(nameof(IsIndependentSection));
         Packs?.SetActive(_active && IsPackDownloads);
+        if (IsIndependentSection) CancelReads();
+        else if (_active && _targetsDirty && CanInteract)
+            TargetLoadTask = Track(RefreshTargetsCoreAsync(CancellationToken.None));
         OnPropertyChanged(nameof(Categories)); OnPropertyChanged(nameof(InstallationHint));
         if (value is 0 or 2 or 3) { SelectedCategory = "全部分类"; RuleFilterIndex = 0; ApplyCatalogFilter(); }
     }
@@ -199,6 +410,12 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
     partial void OnSelectedTargetChanged(GtnhInstanceInfo? value)
     {
         if (IsInstalling) InstallCommand.Cancel();
+        if (!IsLoadingTargets && !HasPreparedUpgrade && Packs?.IsInstalling != true &&
+            _upgradeDownloadSource is { } source && !SamePath(source.InstancePath, value?.InstancePath))
+        {
+            _upgradeDownloadSource = null; _upgradeSourcePath = null; Packs?.ConfigureUpgrade(null);
+            UpgradeStatus = "升级来源已更换，请重新选择要下载的新版。旧实例保持不变。";
+        }
         if (!_syncingSelection && !IsLoadingTargets && !IsImportingOldInstance && value is not null)
         { _requiresTargetSelection = false; _preservedTargetPath = null; }
         ResetReleases();
@@ -213,6 +430,7 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
             }
         }
         NotifyState();
+        NotifyUpgradeState();
         QueueReleases();
     }
 
@@ -229,6 +447,7 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
     partial void OnIsLoadingReleasesChanged(bool value) => NotifyState();
     partial void OnIsInstallingChanged(bool value) => NotifyState();
     partial void OnIsImportingOldInstanceChanged(bool value) => NotifyState();
+    partial void OnIsPreparingUpgradeChanged(bool value) => NotifyState();
 
     /// <summary>仅对启动器已发现的实例读取 GTNH 标识，不扫描整个电脑。</summary>
     [RelayCommand(CanExecute = nameof(CanRefreshTargets))]
@@ -272,7 +491,7 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
                 (_requiresTargetSelection ? null : found.FirstOrDefault());
             if (_requiresTargetSelection && SelectedTarget is null) Instances.SelectedInstance = null;
             TargetStatus = found.Count == 0 ? "尚未发现可识别的 GTNH。请先在本地实例页导入并补全整合包，再刷新这里。"
-                : $"已识别 {found.Count} 个 GTNH 实例。推荐模组安装与数据迁移都使用上方选择的目标。";
+                : $"已识别 {found.Count} 个 GTNH 实例。上方选择用于资源安装；在“版本升级”中则是要升级的旧实例。";
             if (failures.Count > 0) TargetStatus += $" {failures.Count} 个实例的标识未能读取，可检查后刷新。";
             if (recoverable.Count > 0) TargetStatus += " 标有“待恢复”的实例仅保留数据迁移恢复入口，不能安装推荐模组。";
             if (failures.Count > 0)
@@ -415,7 +634,7 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
 
     /// <summary>列表变动延迟到空闲时识别，避免导入逐条发布时重复扫描。</summary>
     private void OnInstanceCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    { _targetsDirty = true; if (_active && CanInteract) TargetLoadTask = Track(RefreshTargetsCoreAsync(CancellationToken.None)); }
+    { _targetsDirty = true; if (_active && !IsIndependentSection && CanInteract) TargetLoadTask = Track(RefreshTargetsCoreAsync(CancellationToken.None)); }
     private void OnInstancesChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (_closing) return;
@@ -433,7 +652,7 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
         if (e.PropertyName is nameof(InstancesViewModel.IsBusy) or nameof(InstancesViewModel.SelectedInstance))
         {
             NotifyState();
-            if (_active && _targetsDirty && CanInteract) TargetLoadTask = Track(RefreshTargetsCoreAsync(CancellationToken.None));
+            if (_active && !IsIndependentSection && _targetsDirty && CanInteract) TargetLoadTask = Track(RefreshTargetsCoreAsync(CancellationToken.None));
         }
     }
 
@@ -457,6 +676,8 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
         Packs?.NotifyHostStateChanged();
         RefreshTargetsCommand.NotifyCanExecuteChanged(); RefreshReleasesCommand.NotifyCanExecuteChanged(); InstallCommand.NotifyCanExecuteChanged();
         ImportOldInstanceCommand.NotifyCanExecuteChanged();
+        ImportNewInstanceCommand.NotifyCanExecuteChanged(); PrepareUpgradeDownloadCommand.NotifyCanExecuteChanged();
+        NotifyUpgradeState();
     }
     private Task Track(Task task) { _pending.RemoveWhere(item => item.IsCompleted); _pending.Add(task); return task; }
     private static bool SamePath(string? left, string? right) => left is not null && right is not null && string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
@@ -477,21 +698,27 @@ public sealed partial class GtnhHubViewModel : ObservableObject, IDisposable
     /// <summary>窗口关闭时取消并等待本专区任务，避免下载器先于后台工作释放。</summary>
     public async Task StopAsync()
     {
-        _closing = true; _active = false; CancelReads(); InstallCommand.Cancel(); ImportOldInstanceCommand.Cancel();
+        _closing = true; _active = false; CancelReads(); InstallCommand.Cancel(); ImportOldInstanceCommand.Cancel(); ImportNewInstanceCommand.Cancel(); PrepareUpgradeDownloadCommand.Cancel(); ContinueUpgradeCommand.Cancel(); TrialUpgradeCommand.Cancel();
+        Tools.IsActive = false;
         if (IsImportingOldInstance) Instances.ImportCommand.Cancel();
         NotifyState();
         try { await Task.WhenAll(_pending.Append(InstallCommand.ExecutionTask ?? Task.CompletedTask)
             .Append(ImportOldInstanceCommand.ExecutionTask ?? Task.CompletedTask)
-            .Append(Packs?.StopAsync() ?? Task.CompletedTask)); }
+            .Append(ImportNewInstanceCommand.ExecutionTask ?? Task.CompletedTask)
+            .Append(PrepareUpgradeDownloadCommand.ExecutionTask ?? Task.CompletedTask)
+            .Append(ContinueUpgradeCommand.ExecutionTask ?? Task.CompletedTask).Append(TrialUpgradeCommand.ExecutionTask ?? Task.CompletedTask)
+            .Append(Packs?.StopAsync() ?? Task.CompletedTask).Append(Tools.StopAsync())); }
         catch (OperationCanceledException) { }
     }
     /// <summary>释放事件订阅；异步任务应先由窗口调用 StopAsync 等待结束。</summary>
     public void Dispose()
     {
         if (_disposed) return;
-        _disposed = true; _closing = true; _active = false; CancelReads(); InstallCommand.Cancel(); ImportOldInstanceCommand.Cancel();
+        _disposed = true; _closing = true; _active = false; CancelReads(); InstallCommand.Cancel(); ImportOldInstanceCommand.Cancel(); ImportNewInstanceCommand.Cancel(); PrepareUpgradeDownloadCommand.Cancel(); ContinueUpgradeCommand.Cancel(); TrialUpgradeCommand.Cancel();
+        Tools.Dispose();
         if (IsImportingOldInstance) Instances.ImportCommand.Cancel();
-        Packs?.Dispose();
+        if (Packs is not null) { Packs.PropertyChanged -= OnPacksChanged; Packs.Dispose(); }
         Instances.PropertyChanged -= OnInstancesChanged; Instances.Instances.CollectionChanged -= OnInstanceCollectionChanged;
+        Instances.UpgradePreparationRequested -= OnUpgradePreparationRequested;
     }
 }

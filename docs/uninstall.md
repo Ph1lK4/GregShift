@@ -1,6 +1,6 @@
 # 卸载 EML 与保留玩家数据
 
-更新日期：2026-11-18。以下面向便携 ZIP 发布版；源码调试版本的实例可能位于解决方案根目录，操作前先核对实际路径。
+更新日期：2026-11-22。以下面向便携 ZIP 发布版；源码调试版本的实例可能位于解决方案根目录，操作前先核对实际路径。
 
 **EML 文件夹不只是程序，也可能包含你的存档、地图和备份。删除整个文件夹会一并删除其中的数据。** 升级不需要先卸载，升级请使用[发布与升级说明](release-rc2.md)。RC2 的程序文件位于 `app/`，玩家数据仍在根目录。
 
@@ -15,6 +15,10 @@
 | `settings/` | 下载并发、限速等启动器设置 |
 | `runtimes/java/` | EML 下载的 Java；实例启动设置可能引用它的绝对路径 |
 | `cache/` | 下载缓存、断点文件和整合包原包；部分原包用于恢复 Embedded 文件，建议保留 |
+| `cache/gtnh-tools/flowcharts/` | 本地交互流程图的 JSON 与来源、修订、时间、许可记录；清除只会移除相应离线副本，下次需联网读取，不影响实例和存档 |
+| `settings/gtnh-tools/` | 矿物处理方案与研究助手偏好；重装或迁移电脑前，可在工具内导出 JSON 或备份此目录；不包含游戏研究进度 |
+| `cache/gtnh-tools/webview2/` | GTNH 内嵌阅读器独立的网页缓存、Cookie 和网站存储；清理前关闭启动器，不等于清除微软账号或系统浏览器数据 |
+| `cache/gtnh-tools/planner-webview2/` | 产线规划器独立的网站存储、Cookie 和缓存，**包含本机方案**；不是可随意删除的临时缓存，清理或卸载前先在规划器逐个导出重要方案 JSON |
 | 根目录 `.eml-runtime/`、`.eml-imports/` | 运行状态、缓存与导入工作数据；备份时保留，不在仍有任务运行时手动清理 |
 
 如果存档、Java、原包或备份位于其他位置，需要分别处理；不要因为卸载 EML 就删除它们。移动备份后，部分保存的绝对路径可能需要重新选择。
@@ -42,6 +46,9 @@
 - 想一并删除玩家数据：明确确认不再需要其中的存档、迁移备份和截图，再删除对应目录。删除结果取决于所用工具与回收站设置，不能保证恢复。
 - 此步骤不会自动清除单独存放的账号文件、外部原包、其他位置的备份或浏览器授权。
 - 不要卸载机器上由其他软件使用的 Java 或 .NET。EML 的自包含 .NET 在发布目录内；EML 下载的 Java 在上述 `runtimes/java/` 内，其他安装的 Java 不属于这份目录。
+- Microsoft Edge WebView2 运行时可能由其他软件共享；不要因为卸载启动器就删除或卸载它。只清理 GTNH 工具网页数据时，在启动器关闭后核对并删除 `cache/gtnh-tools/webview2/`，不要删除整个下载缓存或实例目录。
+- 只清理本地流程图数据时，关闭启动器后核对并删除 `cache/gtnh-tools/flowcharts/`；这与网页 Cookie 目录分开。需要保留离线图表及其来源、许可记录时，一并备份此目录。
+- 产线规划器使用另一个目录 `cache/gtnh-tools/planner-webview2/`。**先在“GTNH 工具 → 产线规划器”逐个导出重要方案，并核对 JSON 可读，再关闭启动器后处理目录。** 删除此目录会删除本机方案、网站设置及 Cookie，不能假定原站有云备份；不建议只因目录名含 `cache` 就清理它。
 
 需要帮助可联系维护者 **K4ssia**：**[477619464@qq.com](mailto:477619464@qq.com)**，请勿附带账号文件或完整私人日志。更多数据处理说明见[隐私说明](../PRIVACY.md)。
 
@@ -52,3 +59,5 @@ The portable EML folder may contain worlds, maps and migration backups, not just
 To remove one account, select it on EML's Microsoft account page and confirm removal; other accounts remain. Repeat for every account if you want to clear the list. If EML cannot run, close all EML/game processes and remove only `%LOCALAPPDATA%\EML\accounts\microsoft.dpapi` after verifying the path. Deleting this file clears the entire account collection shared by all EML copies under that Windows user. Public names, UUIDs and launch history remain in instance settings, without tokens. Removing credentials does not revoke browser sessions or Microsoft-side authorization.
 
 Remove the portable folder only after deciding what data to keep. Do not uninstall unrelated Java/.NET installations. See the [upgrade guide](release-rc2.md) if you are updating rather than uninstalling.
+
+GTNH tools use separate directories: `cache/gtnh-tools/flowcharts/` for native chart JSON and its source/license metadata, `cache/gtnh-tools/webview2/` for the reader's cookies, caches and storage, and `cache/gtnh-tools/planner-webview2/` for GTNH Planner. **The planner profile contains your locally saved plans, not just disposable cache.** Export each important plan to JSON from “GTNH tools → Production planner” and verify the files before clearing that profile, reinstalling or moving to another computer. Do not assume a cloud backup exists. Close the launcher before removing any profile. Removing chart data only removes offline copies; do not delete the entire download cache or instances by mistake. Keep the chart directory if you want to retain offline references. Do not uninstall the shared WebView2 runtime just to remove the launcher.

@@ -37,6 +37,7 @@ public partial class MainWindow : Window
     private readonly MinecraftAvatarCache _playerAvatars;
     private readonly GtnhAddonService _gtnhAddons;
     private readonly GtnhMirrorPackService _gtnhPacks;
+    private readonly GtnhFlowChartService _gtnhFlowCharts;
     private readonly InstanceCatalog _instanceCatalog;
     private readonly WpfOperationNotifications _notifications;
     private readonly ScopedOperationNotifications _operationNotifications;
@@ -75,6 +76,7 @@ public partial class MainWindow : Window
         _gtnhAddons = new GtnhAddonService(launcherRoot, _downloadCenter, localMods, onlineCatalog: onlineCatalog,
             modrinth: _modrinth, curseForge: _curseForge, contentRegistrar: new GtnhContentRegistrar(launcherRoot));
         _gtnhPacks = new GtnhMirrorPackService(launcherRoot, _downloadCenter);
+        _gtnhFlowCharts = new GtnhFlowChartService(launcherRoot);
         var onlineInstaller = new OnlineModInstaller(launcherRoot, onlineCatalog, _downloadCenter, localMods);
         _modIcons = new ModIconCache(launcherRoot, WpfModIconDecoder.Decode);
         var accounts = new MinecraftAccountViewModel(_accountService, uri =>
@@ -97,6 +99,12 @@ public partial class MainWindow : Window
                 folderImporter: new EML.Infrastructure.Minecraft.External.MinecraftFolderImporter(launcherRoot),
                 externalDialogs: new ExternalInstanceDialogs(this));
         _instanceCatalog = new InstanceCatalog(_modrinth, _curseForge);
+        if (instances.Gtnh is { } gtnh)
+        {
+            gtnh.Tools.BrowserDataFolder = Path.Combine(launcherRoot, "cache", "gtnh-tools", "webview2");
+            gtnh.Tools.ToolsDataFolder = Path.Combine(launcherRoot, "settings", "gtnh-tools");
+            gtnh.Tools.ConfigureFlowCharts(_gtnhFlowCharts);
+        }
         var archives = new InstanceArchiveService(launcherRoot, _instanceCatalog, _downloadCenter);
         var downloads = new InstanceDownloadsViewModel(_instanceCatalog,
             (release, progress, token) => instances.DownloadInstanceAsync(archives, release.Provider, release.ProjectId, release.Id, progress, token),
@@ -135,7 +143,7 @@ public partial class MainWindow : Window
             viewModel.Instances.DownloadMissingCommand, viewModel.Instances.ImportCommand, viewModel.Instances.ImportFolderCommand,
             viewModel.Instances.ExportCommand, viewModel.Instances.RenameCommand, viewModel.Instances.DeleteCommand,
             viewModel.Instances.LaunchGameCommand, viewModel.Instances.SaveLaunchSettingsCommand,
-            viewModel.Instances.MigratePlayerDataCommand, viewModel.Instances.RestoreMigrationCommand,
+            viewModel.Instances.MigratePlayerDataCommand, viewModel.Instances.UpgradeGtnhCommand, viewModel.Instances.RestoreMigrationCommand,
             viewModel.Instances.RefreshModsCommand, viewModel.Instances.AddLocalModsCommand,
             viewModel.Instances.AdoptModCommand, viewModel.Instances.EnableModCommand, viewModel.Instances.DisableModCommand,
             viewModel.Instances.RemoveModCommand, viewModel.Instances.RestoreModCommand,
@@ -181,6 +189,7 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel viewModel) viewModel.Dispose();
         _appearance.Dispose();
         _playerAvatars.Dispose();
+        _gtnhFlowCharts.Dispose();
         _javaRuntimes.Dispose(); _instanceCatalog.Dispose(); _gtnhPacks.Dispose(); _gtnhAddons.Dispose(); _fileDownloader.Dispose(); _accountService.Dispose(); _modrinth.Dispose(); _curseForge.Dispose(); _modIcons.Dispose();
     }
 

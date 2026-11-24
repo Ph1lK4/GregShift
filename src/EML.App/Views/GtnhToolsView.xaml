@@ -1,0 +1,167 @@
+<UserControl x:Class="EML.App.Views.GtnhToolsView" Style="{StaticResource {x:Type UserControl}}"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:services="clr-namespace:EML.App.Services" xmlns:controls="clr-namespace:EML.App.Controls" KeyDown="OnPageKeyDown">
+ <UserControl.Resources><BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/></UserControl.Resources>
+ <Grid>
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <DockPanel Margin="0,0,0,16">
+   <Button x:Name="ReturnToToolsButton" Content="←  工具目录" Command="{Binding BackToToolsCommand}" Style="{StaticResource QuietButton}" DockPanel.Dock="Left" Margin="0,0,14,0" Visibility="{Binding IsToolWorkspace, Converter={StaticResource VisibleWhenTrue}}" AutomationProperties.Name="返回 GTNH 工具目录"/>
+   <StackPanel>
+    <TextBlock Text="GTNH 工具" FontSize="24" FontWeight="SemiBold"/>
+    <TextBlock Text="资料查阅、生产规划和本地计算，按需打开。" Foreground="{DynamicResource MutedTextBrush}" Margin="0,5,0,0" Visibility="{Binding IsToolDirectory, Converter={StaticResource VisibleWhenTrue}}"/>
+   </StackPanel>
+  </DockPanel>
+  <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding IsToolDirectory, Converter={StaticResource VisibleWhenTrue}}">
+   <ItemsControl x:Name="ToolDirectory" ItemsSource="{Binding Tools}">
+    <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+    <ItemsControl.ItemTemplate><DataTemplate>
+     <Button Command="{Binding DataContext.OpenToolCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Style="{StaticResource QuietButton}" Margin="0,0,12,12" Padding="18" MinHeight="164" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+       Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" AutomationProperties.Name="{Binding Name}">
+      <Grid>
+       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+       <DockPanel><TextBlock Text="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="23" Foreground="{DynamicResource SecondaryAccentBrush}" DockPanel.Dock="Left"/>
+        <TextBlock Text="→" HorizontalAlignment="Right" Foreground="{DynamicResource MutedTextBrush}"/></DockPanel>
+       <TextBlock Grid.Row="1" Text="{Binding Name}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,13,0,0"/>
+       <TextBlock Grid.Row="2" Text="{Binding Description}" TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}" Margin="0,8,0,14" LineHeight="21"/>
+       <TextBlock Grid.Row="3" Text="{Binding Kind}" FontSize="11" Foreground="{DynamicResource SecondaryAccentBrush}"/>
+      </Grid>
+     </Button>
+    </DataTemplate></ItemsControl.ItemTemplate>
+   </ItemsControl>
+  </ScrollViewer>
+  <Grid Grid.Row="1" Visibility="{Binding IsToolWorkspace, Converter={StaticResource VisibleWhenTrue}}">
+   <Grid.RowDefinitions><RowDefinition Height="0"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <!-- 列表保持挂载，进入详情不重建搜索、分类或滚动位置。 -->
+  <Grid Grid.Row="1" x:Name="BrowsePage" Visibility="{Binding IsChartList, Converter={StaticResource VisibleWhenTrue}}">
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+   <Border Style="{StaticResource CardBorder}" Padding="18" Margin="0,0,0,14">
+    <Grid>
+     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="190"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+     <Grid Margin="0,0,14,0">
+      <TextBox x:Name="SearchInput" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Height="40" MaxLength="128" Padding="38,8,12,8" AutomationProperties.Name="搜索流程图"/>
+      <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" Margin="13,0,0,0" IsHitTestVisible="False"/>
+      <TextBlock Text="搜索工艺流程图" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" Margin="38,0,12,0" IsHitTestVisible="False">
+       <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SearchText}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+      </TextBlock>
+     </Grid>
+     <ComboBox Grid.Column="1" ItemsSource="{Binding Sections}" SelectedItem="{Binding SelectedSection}" Height="40" AutomationProperties.Name="流程图目录分组"/>
+     <Button Grid.Column="2" Content="更新目录" Command="{Binding RefreshDirectoryCommand}" Style="{StaticResource QuietButton}" Margin="10,0,0,0" ToolTip="从 Wiki 更新名称和创建状态，不批量下载图表"/>
+    </Grid>
+   </Border>
+   <Border Grid.Row="1" Style="{StaticResource CardBorder}" Padding="8,14,8,8">
+    <Grid>
+     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <TextBlock Text="{Binding DirectorySummary}" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" Margin="12,0,12,10"/>
+     <ListBox Grid.Row="1" x:Name="ChartList" ItemsSource="{Binding Charts}" SelectedItem="{Binding SelectedChart}" BorderThickness="0" Background="Transparent"
+       HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+       MouseLeftButtonUp="OnChartMouseUp" PreviewKeyDown="OnChartKeyDown" AutomationProperties.Name="工艺流程图目录">
+      <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}"><Setter Property="Padding" Value="14,16"/></Style></ListBox.ItemContainerStyle>
+      <ListBox.ItemTemplate><DataTemplate>
+       <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="68"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <Border Width="50" Height="50" CornerRadius="10" Background="{DynamicResource RaisedSurfaceBrush}" HorizontalAlignment="Left" VerticalAlignment="Center">
+         <Path Data="M 2,2 L 10,2 10,10 2,10 Z M 18,18 L 26,18 26,26 18,26 Z M 6,10 L 6,22 18,22 M 18,6 L 26,6 26,14 18,14 Z M 10,6 L 18,6" Stroke="{DynamicResource SecondaryAccentBrush}" StrokeThickness="1.4" Width="28" Height="28" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+        </Border>
+        <StackPanel Grid.Column="1" Margin="0,0,16,0">
+         <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap"/>
+         <TextBlock Text="{Binding Section}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,6,0,0"/>
+         <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,5,0,0">
+          <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><DataTrigger Binding="{Binding IsCreated}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+         </TextBlock>
+        </StackPanel>
+        <Button Grid.Column="2" Content="查看流程图  →" Command="{Binding DataContext.OpenDetailsCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" CommandParameter="{Binding}" Style="{StaticResource QuietButton}" VerticalAlignment="Center"/>
+       </Grid>
+      </DataTemplate></ListBox.ItemTemplate>
+     </ListBox>
+     <TextBlock Grid.Row="1" Text="没有匹配的流程图。" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}" Visibility="{Binding HasNoResults, Converter={StaticResource VisibleWhenTrue}}"/>
+     <TextBlock Grid.Row="2" Text="{Binding DirectoryStatus}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="12,10,12,4" TextWrapping="Wrap"/>
+    </Grid>
+   </Border>
+  </Grid>
+  <Grid Grid.Row="1" x:Name="DetailsPage" Visibility="{Binding IsChartDetail, Converter={StaticResource VisibleWhenTrue}}" services:UiMotion.Enter="True" services:UiMotion.EnterDistance="6">
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <DockPanel Margin="0,0,0,12">
+    <Button x:Name="ReturnToChartsButton" Content="←  返回目录" Command="{Binding BackToChartsCommand}" Style="{StaticResource QuietButton}" DockPanel.Dock="Left" Margin="0,0,14,0"/>
+    <TextBlock Text="{Binding ReaderTitle}" FontSize="22" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+   </DockPanel>
+   <WrapPanel Grid.Row="1" Margin="0,0,0,12" Visibility="{Binding HasGraph, Converter={StaticResource VisibleWhenTrue}}">
+    <Button Content="−" Click="OnZoomOut" ToolTip="缩小" Padding="12,7"/><Button Content="+" Click="OnZoomIn" ToolTip="放大" Padding="12,7" Margin="5,0,0,0"/>
+    <Button Content="适应窗口" Click="OnFit" Style="{StaticResource QuietButton}" Margin="5,0,8,0"/>
+    <Button Content="100%" Click="OnResetZoom" Style="{StaticResource QuietButton}" Margin="0,0,8,0" ToolTip="恢复标准阅读大小"/>
+    <ComboBox ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}" DisplayMemberPath="Label" Width="200" MaxWidth="260" AutomationProperties.Name="高亮流程图分组" Margin="0,0,12,0"/>
+    <CheckBox Content="English" IsChecked="{Binding IsEnglish}" IsEnabled="{Binding HasEnglish}" VerticalAlignment="Center" Margin="0,0,14,0"/>
+    <Button Content="{Binding SourceToggleLabel}" Command="{Binding ToggleSourceCommand}" Style="{StaticResource QuietButton}"/>
+   </WrapPanel>
+   <Border Grid.Row="2" Style="{StaticResource CardBorder}" Padding="0" ClipToBounds="True">
+    <Grid>
+     <controls:GtnhFlowCanvas x:Name="FlowCanvas" View="{Binding CurrentView}" IconData="{Binding ChartContent.IconData}" HighlightGroup="{Binding HighlightGroup}" Visibility="{Binding ShowCanvas, Converter={StaticResource VisibleWhenTrue}}"/>
+     <TextBox Text="{Binding SourceText, Mode=OneWay}" IsReadOnly="True" TextWrapping="NoWrap" AcceptsReturn="True" FontFamily="Consolas" FontSize="13" BorderThickness="0" Padding="18"
+       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Visibility="{Binding ShowSource, Converter={StaticResource VisibleWhenTrue}}" AutomationProperties.Name="流程图声明式数据"/>
+     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="460" Margin="24" Visibility="{Binding IsMissingChart, Converter={StaticResource VisibleWhenTrue}}">
+      <TextBlock Text="未创建，等待更新" FontSize="23" FontWeight="SemiBold" TextAlignment="Center"/>
+      <TextBlock Text="原站还没有创建这张流程图。名称和目录位置会保留，创建后可更新目录再查看。" TextWrapping="Wrap" TextAlignment="Center" Foreground="{DynamicResource MutedTextBrush}" Margin="0,12,0,0" LineHeight="23"/>
+     </StackPanel>
+     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24" Visibility="{Binding IsLoadingChart, Converter={StaticResource VisibleWhenTrue}}">
+      <TextBlock Text="正在读取图表数据……" TextAlignment="Center"/><ProgressBar IsIndeterminate="True" Width="220" Height="4" Margin="0,14,0,0"/>
+     </StackPanel>
+     <StackPanel VerticalAlignment="Center" Margin="28" MaxWidth="580" Visibility="{Binding ShowChartError, Converter={StaticResource VisibleWhenTrue}}">
+      <TextBlock Text="这张流程图暂时无法在本地显示" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap"/>
+      <TextBox Text="{Binding Error, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,12" MaxHeight="160" VerticalScrollBarVisibility="Auto"/>
+      <WrapPanel><Button Content="重试读取" Command="{Binding RefreshChartCommand}" Margin="0,0,8,0"/><Button Content="在此页查看原站" Command="{Binding ViewOriginalCommand}" Style="{StaticResource QuietButton}"/></WrapPanel>
+     </StackPanel>
+    </Grid>
+   </Border>
+   <Grid Grid.Row="3" Margin="0,12,0,0">
+    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <StackPanel Margin="0,0,14,0"><TextBlock Text="{Binding ChartStatus}" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource MutedTextBrush}"/>
+     <TextBlock Text="{Binding SourceMetadata}" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"/></StackPanel>
+    <WrapPanel Grid.Column="1" VerticalAlignment="Top">
+     <Button Content="检查更新" Command="{Binding RefreshChartCommand}" Style="{StaticResource QuietButton}" Visibility="{Binding HasGraph, Converter={StaticResource VisibleWhenTrue}}"/>
+     <Button Content="查看原站" Command="{Binding ViewOriginalCommand}" Style="{StaticResource QuietButton}" Visibility="{Binding HasGraph, Converter={StaticResource VisibleWhenTrue}}"/>
+     <Button Content="来源与署名" Click="OnAttribution" Style="{StaticResource QuietButton}" Visibility="{Binding HasGraph, Converter={StaticResource VisibleWhenTrue}}"/>
+    </WrapPanel>
+   </Grid>
+  </Grid>
+  <!-- 任务书、显式原站回退和目录更新共用一个隔离浏览器，不加载本地文件。 -->
+  <Grid Grid.Row="1" x:Name="BrowserPage" Visibility="{Binding HasBrowser, Converter={StaticResource VisibleWhenTrue}}">
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <Border Style="{StaticResource CardBorder}" Padding="12" Margin="0,0,0,10">
+    <StackPanel>
+     <DockPanel Margin="0,0,0,8">
+      <WrapPanel DockPanel.Dock="Right"><Button Content="返回" Click="OnBack" IsEnabled="{Binding CanGoBack}" Padding="10,5"/><Button Content="前进" Click="OnForward" IsEnabled="{Binding CanGoForward}" Padding="10,5" Margin="4,0"/><Button Content="刷新" Click="OnReload" Padding="10,5"/></WrapPanel>
+      <TextBlock Text="{Binding ReaderTitle}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+     </DockPanel>
+     <DockPanel x:Name="BrowserAddressBar">
+      <DockPanel.Style><Style TargetType="DockPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding ShowBrowserAddress}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></DockPanel.Style>
+      <Button Content="复制链接" Click="OnCopyAddress" DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Padding="10,5" Margin="8,0,0,0"/>
+      <TextBox Text="{Binding CurrentAddress, Mode=OneWay}" IsReadOnly="True" Padding="8,5" AutomationProperties.Name="当前网页地址"/>
+     </DockPanel>
+     <TextBlock Text="{Binding OnlineNotice}" TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,4,0,0"/>
+    </StackPanel>
+   </Border>
+   <Border Grid.Row="1" Style="{StaticResource CardBorder}" Padding="0" ClipToBounds="True">
+    <Grid>
+     <controls:GtnhToolBrowser x:Name="Browser"/>
+     <StackPanel Margin="24" MaxWidth="580" VerticalAlignment="Center" Visibility="{Binding HasError, Converter={StaticResource VisibleWhenTrue}}">
+      <TextBlock Text="网页暂时无法显示" FontSize="21" FontWeight="SemiBold"/>
+      <TextBox Text="{Binding Error, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,12" MaxHeight="160" VerticalScrollBarVisibility="Auto"/>
+      <WrapPanel><Button Content="重试加载" Click="OnReload" Margin="0,0,8,0"/><Button Content="WebView2 安装帮助 ↗" Click="OnRuntimeHelp" Style="{StaticResource QuietButton}" Visibility="{Binding RuntimeMissing, Converter={StaticResource VisibleWhenTrue}}"/></WrapPanel>
+     </StackPanel>
+    </Grid>
+   </Border>
+   <StackPanel Grid.Row="2" Margin="0,10,0,0">
+    <TextBlock Text="{Binding BrowserStatus}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap"/>
+    <Button Content="返回目录" Command="{Binding CancelDirectoryUpdateCommand}" HorizontalAlignment="Left" Style="{StaticResource QuietButton}" Visibility="{Binding IsUpdatingDirectory, Converter={StaticResource VisibleWhenTrue}}"/>
+    <WrapPanel Visibility="{Binding IsViewingOriginal, Converter={StaticResource VisibleWhenTrue}}" Margin="0,8,0,0">
+     <Button Content="读取为本地图表" Click="OnReadPageData" Margin="0,0,8,0" ToolTip="只读取当前原站页的图表数据，验证后在本地绘制并缓存"/>
+     <Button Content="←  返回本地图表" Command="{Binding ReturnToLocalCommand}" Style="{StaticResource QuietButton}"/>
+    </WrapPanel>
+   </StackPanel>
+  </Grid>
+  <controls:GtnhPlannerPane Grid.Row="1" x:Name="Planner" Visibility="{Binding IsPlanner, Converter={StaticResource VisibleWhenTrue}}" services:UiMotion.Enter="True" services:UiMotion.EnterDistance="6"/>
+  <controls:GtnhOreRegexPane Grid.Row="1" x:Name="OreRegex" Visibility="{Binding IsOreRegex, Converter={StaticResource VisibleWhenTrue}}" services:UiMotion.Enter="True" services:UiMotion.EnterDistance="6"/>
+  <controls:GtnhResearchHelperPane Grid.Row="1" x:Name="ResearchHelper" Visibility="{Binding IsResearchHelper, Converter={StaticResource VisibleWhenTrue}}" services:UiMotion.Enter="True" services:UiMotion.EnterDistance="6"/>
+  </Grid>
+  <TextBlock Grid.Row="2" Text="{Binding SourceLabel}" TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,12,0,0"/>
+ </Grid>
+</UserControl>

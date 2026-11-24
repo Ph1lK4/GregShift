@@ -30,6 +30,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public InstancesViewModel Instances { get; }
     public MinecraftAccountViewModel? Accounts { get; }
     public GtnhHubViewModel? Gtnh => Instances.Gtnh;
+    public GtnhToolsViewModel? Tools => Gtnh?.Tools;
     public InstanceDownloadsViewModel? Downloads { get; }
     public DownloadCenterViewModel? TransferCenter { get; }
     public IAppearanceViewModel? Appearance { get; }
@@ -40,14 +41,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => _selectedPage;
         set
         {
-            if (_disposed || value is < 0 or > 8 || !SetProperty(ref _selectedPage, value)) return;
+            if (_disposed || value is < 0 or > 9 || !SetProperty(ref _selectedPage, value)) return;
             if (value != 0) CloseInstanceWorkspace();
             Instances.OnlineMods?.SetActive(value == 1);
             Gtnh?.SetActive(value == 4);
+            if (Tools is { } tools) tools.IsActive = value == 9;
             Downloads?.SetActive(value == 6);
             OnPropertyChanged(nameof(IsInstancePage)); OnPropertyChanged(nameof(IsOnlinePage));
             OnPropertyChanged(nameof(IsAccountsPage)); OnPropertyChanged(nameof(IsJavaPage));
             OnPropertyChanged(nameof(IsGtnhPage));
+            OnPropertyChanged(nameof(IsGtnhToolsPage));
             OnPropertyChanged(nameof(IsLaunchSettingsPage));
             OnPropertyChanged(nameof(IsDownloadsPage));
             OnPropertyChanged(nameof(IsDownloadCenterPage));
@@ -65,6 +68,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsDownloadsPage => SelectedPage == 6;
     public bool IsDownloadCenterPage => SelectedPage == 7;
     public bool IsAppearancePage => SelectedPage == 8;
+    public bool IsGtnhToolsPage => SelectedPage == 9;
 
     /// <summary>工作区可以保留后台任务产生的结果，但只在本地实例页面显示。</summary>
     public bool InstanceWorkspaceOpen

@@ -138,7 +138,7 @@ internal static class WorkspaceAccessibilityChecks
         var names = new Dictionary<int, string>
         {
             [1] = "快速检查", [2] = "补全实例依赖", [3] = "前往启动设置", [4] = "停止游戏",
-            [5] = "前往 GTNH 数据迁移", [6] = "添加本地模组", [7] = "保存名称"
+            [5] = "前往 GTNH 版本升级", [6] = "添加本地模组", [7] = "保存名称"
         };
         return VisualDescendants(workspace).OfType<Button>().Single(button => Equals(button.Content, names[index]));
     }

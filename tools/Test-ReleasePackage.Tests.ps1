@@ -26,9 +26,14 @@ function Assert-Accepted([string] $CaseName, [scriptblock] $Action) {
     & $Action
     $script:checks++
 }
-function Assert-Rejected([string] $CaseName, [scriptblock] $Action) {
+function Assert-Rejected([string] $CaseName, [scriptblock] $Action, [string] $ExpectedMessage) {
     $rejected = $false
-    try { & $Action | Out-Null } catch { $rejected = $true }
+    try { & $Action | Out-Null } catch {
+        $rejected = $true
+        if ($ExpectedMessage -and $_.Exception.Message -cne $ExpectedMessage) {
+            throw "Unexpected release policy rejection reason: $CaseName"
+        }
+    }
     if (-not $rejected) { throw "Expected release policy rejection: $CaseName" }
     $script:checks++
 }
@@ -49,6 +54,9 @@ foreach ($name in @('EML.exe', 'START-HERE.txt', 'UPGRADE.txt', 'release-manifes
     'app/EML.App.dll', 'app/EML.Core.dll', 'app/EML.Infrastructure.dll', 'app/EML.App.runtimeconfig.json',
     'app/EML.App.deps.json', 'app/microsoft-login.json', 'app/eml-layout.json', 'app/coreclr.dll', 'app/hostfxr.dll',
     'app/CommunityToolkit.Mvvm.dll', 'app/createdump.exe', 'app/zh-Hans/PresentationFramework.resources.dll',
+    'app/Microsoft.Web.WebView2.Core.dll', 'app/Microsoft.Web.WebView2.Wpf.dll',
+    'app/WebView2Loader.dll', 'docs/LICENSE-WEBVIEW2.txt', 'docs/gtnh-tools.md', 'docs/gtnh-native-tools.md',
+    'docs/gtnh-planner-notices.md', 'docs/LICENSE-GTNH-PLANNER-ZH.txt',
     'app/ko/System.Windows.Forms.resources.dll', 'docs/LICENSE', 'docs/SOURCE.txt', 'docs/PRIVACY.md',
     'docs/SECURITY.md', 'docs/LICENSE-DOTNET.txt', 'docs/LICENSE-MVVM.txt', 'docs/THIRD-PARTY-NOTICES.txt',
     'docs/uninstall.md', 'docs/code-signing.md', 'docs/release-rc1.md', 'docs/release-rc2.md')) {
@@ -60,15 +68,26 @@ foreach ($name in @('app', 'docs', 'app/zh-Hans', 'app/ko', 'app/cs')) {
 foreach ($name in @('EML.App.exe', 'EML.App.dll', 'System.dll', 'microsoft-login.json', 'eml-layout.json',
     'LICENSE', 'SOURCE.txt', 'app/EML.exe', 'app/EML.App.exe', 'app/app/EML.App.dll',
     'app/app/System.resources.dll', 'app/docs/LICENSE', 'app/release-manifest.json', 'app/START-HERE.txt',
-    'app/LICENSE', 'app/PRIVACY.md', 'app/private.json', 'app/settings/downloads.json', 'app/accounts/microsoft.dpapi',
+    'app/LICENSE', 'app/PRIVACY.md', 'app/gtnh-planner-notices.md', 'app/LICENSE-GTNH-PLANNER-ZH.txt',
+    'gtnh-native-tools.md', 'app/gtnh-native-tools.md', 'docs/nested/gtnh-native-tools.md',
+    'docs/nested/gtnh-planner-notices.md', 'docs/nested/LICENSE-GTNH-PLANNER-ZH.txt',
+    'app/private.json', 'app/settings/downloads.json', 'app/accounts/microsoft.dpapi',
     'app/instances/world.dat', 'app/zh-Hans/private.txt', 'app/zh-Hans/nested/System.resources.dll',
     'app/zh-Hans/EML.App.dll', 'docs/private.txt', 'docs/secret.key', 'docs/logs/trace.log',
     'docs/EML.App.dll', 'docs/nested/SOURCE.txt', 'app/../EML.App.dll', 'App/EML.App.dll',
-    'app//EML.App.dll', 'app/C:/EML.App.dll')) {
+    'app//EML.App.dll', 'app/C:/EML.App.dll',
+    'WebView2Loader.dll', 'app/webview2loader.dll', 'app/runtimes/win-x64/native/WebView2Loader.dll',
+    'app/runtimes/win-x64/native/private.dll', 'app/runtimes/win-x64/native/credentials.json',
+    'app/runtimes/win-x86/native/WebView2Loader.dll', 'app/runtimes/win-arm64/native/WebView2Loader.dll',
+    'app/runtimes/java/bin/java.exe', 'app/runtimes/win-x64/native/webview2loader.dll',
+    'app/runtimes/win-x64/native/nested/WebView2Loader.dll')) {
     Assert-Rejected "structured $name" { Test-EmlReleasePath -RelativePath $name -Layout AppDirectory }
 }
 foreach ($name in @('zh-Hans', 'ko', 'app/app', 'app/docs', 'app/zh-Hans/nested', 'docs/zh-Hans',
-    'app/instances', 'docs/accounts', 'App', 'app/../docs')) {
+    'app/instances', 'docs/accounts', 'App', 'app/../docs',
+    'app/runtimes/win-x64', 'app/runtimes/win-x64/native',
+    'app/runtimes/win-x86', 'app/runtimes/win-arm64', 'app/runtimes/java',
+    'app/runtimes/win-x64/native/nested', 'app/runtimes/win-x64/Native')) {
     Assert-Rejected "structured directory $name" { Test-EmlReleasePath -RelativePath $name -Directory -Layout AppDirectory }
 }
 
@@ -114,7 +133,14 @@ if (-not [string]::IsNullOrWhiteSpace($PackagePath)) {
     Move-Item -LiteralPath $native -Destination $heldNative
     try { Assert-Rejected 'missing native host' { Test-Package $fixture } }
     finally { Move-Item -LiteralPath $heldNative -Destination $native }
-    foreach ($requiredNotice in @("${documentPrefix}LICENSE", "${documentPrefix}SOURCE.txt", "${documentPrefix}PRIVACY.md", "${documentPrefix}SECURITY.md", 'docs/uninstall.md', $entryPoint, "${programPrefix}EML.App.dll")) {
+    $requiredFixtureFiles = @("${documentPrefix}LICENSE", "${documentPrefix}SOURCE.txt", "${documentPrefix}PRIVACY.md", "${documentPrefix}SECURITY.md", 'docs/uninstall.md', $entryPoint, "${programPrefix}EML.App.dll")
+    if ($Layout -eq 'AppDirectory') {
+        $requiredFixtureFiles += @('docs/LICENSE-WEBVIEW2.txt', 'docs/gtnh-tools.md', 'docs/gtnh-native-tools.md',
+            'docs/gtnh-planner-notices.md', 'docs/LICENSE-GTNH-PLANNER-ZH.txt',
+            'app/Microsoft.Web.WebView2.Core.dll', 'app/Microsoft.Web.WebView2.Wpf.dll',
+            'app/WebView2Loader.dll')
+    }
+    foreach ($requiredNotice in $requiredFixtureFiles) {
         $noticePath = Join-Path $fixture $requiredNotice
         $heldNotice = Join-Path $temporary ('held-' + [IO.Path]::GetFileName($requiredNotice))
         Move-Item -LiteralPath $noticePath -Destination $heldNotice
@@ -163,12 +189,27 @@ if (-not [string]::IsNullOrWhiteSpace($PackagePath)) {
         }
     } finally { [IO.File]::WriteAllText($manifestFile, $manifestText) }
     if ($Layout -eq 'AppDirectory') {
+        $loaderPath = Join-Path $fixture 'app/WebView2Loader.dll'
+        $loaderBytes = [IO.File]::ReadAllBytes($loaderPath)
+        try {
+            # 只有测试副本被改写；不加载、执行或修改正式加载器。
+            [IO.File]::WriteAllBytes($loaderPath, [byte[]](0..63))
+            Assert-Rejected 'invalid WebView2 native loader' { Test-Package $fixture }
+        } finally { [IO.File]::WriteAllBytes($loaderPath, $loaderBytes) }
         $markerPath = Join-Path $fixture 'app/eml-layout.json'
         $markerBytes = [IO.File]::ReadAllBytes($markerPath)
         # Hide only the disposable fixture's manifest so marker rejections cannot be hash failures.
         Move-Item -LiteralPath $manifestFile -Destination $heldManifest
         try {
             Assert-Accepted 'structured fixture before manifest' { Test-Package $fixture | Out-Null }
+            # 缺少说明必须由必需文件规则拒绝，不能被清单摘要失败掩盖。
+            $nativeToolsPath = Join-Path $fixture 'docs/gtnh-native-tools.md'
+            $heldNativeTools = Join-Path $temporary 'held-native-tools-without-manifest.md'
+            Move-Item -LiteralPath $nativeToolsPath -Destination $heldNativeTools
+            try {
+                Assert-Rejected 'missing native tools notice without manifest' { Test-Package $fixture } `
+                    -ExpectedMessage 'Required self-contained release file is missing: docs/gtnh-native-tools.md'
+            } finally { Move-Item -LiteralPath $heldNativeTools -Destination $nativeToolsPath }
             foreach ($invalidMarker in @('{}', '[]', '{',
                 '{"schemaVersion":1,"layout":"app-directory","dataDirectory":"../.."}',
                 '{"schemaVersion":1,"layout":"flat","dataDirectory":".."}',

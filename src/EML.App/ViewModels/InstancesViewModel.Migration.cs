@@ -13,10 +13,12 @@ public partial class InstancesViewModel
     private int _migrationSelectionRevision;
     private GtnhInstanceInfo? _migrationTarget;
     private MigrationRecoveryInfo? _migrationRecovery;
-    [ObservableProperty] private string migrationStatus = "选中新版 GTNH 实例后，可从旧实例迁入玩家数据。";
+    [ObservableProperty] private string migrationStatus = "选择有本地数据的旧 GTNH，点击“升级 GTNH”准备新版。";
     [ObservableProperty] private string migrationJournalPath = "";
     /// <summary>保留最近一次只读识别任务，供界面流程与测试等待，避免轮询状态。</summary>
     public Task MigrationStateLoadTask { get; private set; } = Task.CompletedTask;
+    /// <summary>只请求切换到已有下载或导入流程，不把准备新版当作迁移授权。</summary>
+    public event Action<UpgradeTargetAction>? UpgradePreparationRequested;
 
     /// <summary>只读识别当前接收方和恢复记录，过期异步结果不会作用于另一实例。</summary>
     private async Task LoadMigrationStateAsync(MinecraftInstance? instance)
@@ -34,7 +36,7 @@ public partial class InstancesViewModel
             MigrationStatus = recovery is { Status: not "Completed" }
                 ? "此实例存在未完成迁移，请先恢复上次迁移。"
                 : target is null ? "当前实例未被识别为支持迁移的 GTNH。"
-                : $"接收方：{target.Name}（GTNH {target.Version}）。先完成依赖补全并试运行，再迁入旧版数据。只保留语言偏好，不迁移完整汉化包。";
+                : $"当前实例：{target.Name}（GTNH {target.Version}）。可升级到独立的新版实例；旧实例保持不变。新版需先补全依赖并试运行，只迁移语言偏好，不复制旧汉化包。";
         }
         catch (Exception ex)
         {
@@ -55,42 +57,104 @@ public partial class InstancesViewModel
     /// <summary>识别结束或操作结束时刷新按钮许可。</summary>
     private void NotifyMigrationCommands()
     {
-        MigratePlayerDataCommand.NotifyCanExecuteChanged(); RestoreMigrationCommand.NotifyCanExecuteChanged();
+        MigratePlayerDataCommand.NotifyCanExecuteChanged(); UpgradeGtnhCommand.NotifyCanExecuteChanged(); RestoreMigrationCommand.NotifyCanExecuteChanged();
     }
+
+    /// <summary>从旧实例开始升级；仍由原迁移服务承担预览、备份、校验和恢复。</summary>
+    [RelayCommand(CanExecute = nameof(CanMigrate), IncludeCancelCommand = true)]
+    private Task UpgradeGtnhAsync(CancellationToken token) => RunMigrationAsync(true, token);
 
     /// <summary>先选择旧实例和范围，再生成只读预览；最终确认后才复制文件。</summary>
     [RelayCommand(CanExecute = nameof(CanMigrate), IncludeCancelCommand = true)]
-    private async Task MigratePlayerDataAsync(CancellationToken token)
+    private Task MigratePlayerDataAsync(CancellationToken token) => RunMigrationAsync(false, token);
+
+    /// <summary>使用下载流程返回的精确实例身份继续升级；不依赖当前选中项或文件夹名称推断目标。</summary>
+    public Task<bool> MigrateDownloadedUpgradeAsync(GtnhInstanceInfo source, GtnhInstanceInfo target,
+        GtnhMigrationMode mode, CancellationToken token) => RunMigrationAsync(true, token, source, target, mode);
+
+    private async Task<bool> RunMigrationAsync(bool upgrade, CancellationToken token, GtnhInstanceInfo? preparedSource = null,
+        GtnhInstanceInfo? preparedTarget = null, GtnhMigrationMode mode = GtnhMigrationMode.FullClient)
     {
-        if (!CanMigrate()) return;
-        var target = _migrationTarget!;
+        if (preparedSource is null ? !CanMigrate() : IsBusy || _migration is null || _migrationDialogs is null) return false;
+        token.ThrowIfCancellationRequested();
+        var target = preparedSource ?? _migrationTarget!;
         IsBusy = true; MigrationJournalPath = "";
         var revision = ++_transferRevision;
         string? outcome = null;
         string? sourcePath = null;
+        string? completedTargetPath = null;
+        UpgradeTargetAction? preparation = null;
         var outcomeKind = OperationNoticeKind.Cancelled;
         try
         {
             MigrationStatus = "正在查找其他 GTNH 实例……";
-            var sources = new List<GtnhInstanceInfo>();
-            foreach (var instance in Instances.Where(value => !string.Equals(value.InstancePath, target.InstancePath, StringComparison.OrdinalIgnoreCase)))
+            MigrationSourceChoice? choice;
+            if (preparedSource is not null && preparedTarget is not null)
             {
-                token.ThrowIfCancellationRequested();
-                try { if (await _migration!.InspectAsync(instance.InstancePath, token) is { } source) sources.Add(source); }
-                catch (Exception ex) when (ex is not OperationCanceledException) { /* 单个无效候选不影响其他实例。 */ }
+                var actualSource = await _migration!.InspectAsync(preparedSource.InstancePath, token);
+                var actualTarget = await _migration.InspectAsync(preparedTarget.InstancePath, token);
+                if (actualSource is null || actualTarget is null || !GtnhUpgradePolicy.IsNewerTarget(actualSource, actualTarget) ||
+                    actualSource.Version != preparedSource.Version || actualTarget.Version != preparedTarget.Version)
+                    throw new InvalidOperationException("下载后实例身份或版本发生变化，请重新准备升级。旧实例未修改。");
+                foreach (var info in new[] { actualSource, actualTarget })
+                {
+                    if (!Instances.Any(instance => string.Equals(instance.InstancePath, info.InstancePath, StringComparison.OrdinalIgnoreCase)))
+                        throw new InvalidOperationException("升级实例已不在本地列表，请重新检查。");
+                    if (await _migration.GetRecoveryAsync(info.InstancePath, token) is { Status: not "Completed" })
+                        throw new InvalidOperationException("升级实例存在未完成迁移，请先恢复。");
+                }
+                choice = new(actualSource, mode);
+                target = actualTarget;
             }
-            if (sources.Count == 0)
+            else
             {
-                outcomeKind = OperationNoticeKind.Warning;
-                outcome = "需要同时保留旧版和新版两个本地 GTNH 实例。请先导入另一个实例。";
-                return;
+                var candidates = new List<GtnhInstanceInfo>();
+                foreach (var instance in Instances.Where(value => !string.Equals(value.InstancePath, target.InstancePath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    token.ThrowIfCancellationRequested();
+                    try
+                    {
+                        if (await _migration!.InspectAsync(instance.InstancePath, token) is { } candidate &&
+                            (!upgrade || GtnhUpgradePolicy.IsNewerTarget(target, candidate)))
+                        {
+                            var recovery = await _migration.GetRecoveryAsync(instance.InstancePath, token);
+                            if (recovery is null || recovery.Status == "Completed") candidates.Add(candidate with { Name = instance.Name });
+                        }
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException) { /* 单个无效候选不影响其他实例。 */ }
+                }
+                if (!upgrade && candidates.Count == 0)
+                {
+                    outcomeKind = OperationNoticeKind.Warning;
+                    outcome = "需要同时保留旧版和新版两个本地 GTNH 实例。请先导入另一个实例。";
+                    return false;
+                }
+                if (upgrade)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var destination = _migrationDialogs!.ChooseUpgradeTarget(target, candidates);
+                    if (destination is null) { outcome = "已取消，实例未修改。"; return false; }
+                    if (destination.Action is UpgradeTargetAction.DownloadNewInstance or UpgradeTargetAction.ImportNewInstance)
+                    {
+                        preparation = destination.Action;
+                        outcome = "请先准备新版并成功试运行，再返回“版本升级”继续。旧实例未修改。";
+                        return false;
+                    }
+                    if (destination.Target is null || !candidates.Contains(destination.Target) ||
+                        !GtnhUpgradePolicy.IsNewerTarget(target, destination.Target))
+                        throw new InvalidOperationException("请选择基础版本更高的独立 GTNH 实例，不支持原地覆盖或降级升级。");
+                    choice = new(target, destination.Mode);
+                    target = destination.Target;
+                }
+                else choice = _migrationDialogs!.ChooseSource(target, candidates);
             }
-            var choice = _migrationDialogs!.ChooseSource(target, sources);
-            if (choice is null) { outcome = "已取消，实例未修改。"; return; }
+            token.ThrowIfCancellationRequested();
+            if (choice is null) { outcome = "已取消，实例未修改。"; return false; }
             sourcePath = choice.Source.InstancePath;
             var groups = await _migration!.GetGroupsAsync(choice.Source.InstancePath, choice.Mode, token);
-            var selection = _migrationDialogs.ChooseGroups(choice.Source, target, groups);
-            if (selection is null) { outcome = "已取消，实例未修改。"; return; }
+            token.ThrowIfCancellationRequested();
+            var selection = _migrationDialogs!.ChooseGroups(choice.Source, target, groups);
+            if (selection is null) { outcome = "已取消，实例未修改。"; return false; }
             MigrationStatus = "正在读取所选数据并生成迁移预览……";
             var request = new InstanceMigrationRequest(choice.Source.InstancePath, target.InstancePath,
                 choice.Mode, selection.Groups, selection.TargetTested, selection.GamesClosed)
@@ -98,28 +162,38 @@ public partial class InstancesViewModel
             var plan = await _migration.PreviewAsync(request, token);
             token.ThrowIfCancellationRequested();
             var overwrite = _migrationDialogs.ConfirmMigration(plan);
-            if (overwrite is null) { outcome = "已取消，实例未修改。"; return; }
+            if (overwrite is null) { outcome = "已取消，实例未修改。"; return false; }
             ClearCheckResults();
             var result = await _migration.MigrateAsync(plan, overwrite.Value, MigrationProgress(revision), token);
             MigrationJournalPath = result.JournalPath;
             outcome = $"{string.Join("\n", result.Messages)}\n复制 {result.CopiedFiles} 个文件，跳过 {result.SkippedFiles} 个文件。";
             outcomeKind = result.Status is "Completed" or "NoChanges" ? OperationNoticeKind.Success : OperationNoticeKind.Warning;
+            if (upgrade && outcomeKind == OperationNoticeKind.Success)
+            {
+                completedTargetPath = target.InstancePath;
+                outcome = $"新版：{target.Name}（{target.Version}）\n数据迁移完成，待试运行；这不代表存档或额外模组兼容。\n" + outcome;
+            }
         }
         catch (OperationCanceledException) { outcome = "迁移已取消；若提交已开始，会先尝试恢复。"; }
         catch (Exception ex) { outcomeKind = OperationNoticeKind.Failure; outcome = "迁移未完成：" + ex.Message; }
         finally
         {
             ++_transferRevision;
+            if (completedTargetPath is not null)
+                SelectedInstance = Instances.FirstOrDefault(item => string.Equals(item.InstancePath, completedTargetPath, StringComparison.OrdinalIgnoreCase));
             await LoadMigrationStateAsync(SelectedInstance);
             if (outcome is not null) MigrationStatus = outcome;
             IsBusy = false;
-            if (outcome is not null)
+            if (preparation is { } action) UpgradePreparationRequested?.Invoke(action);
+            else if (outcome is not null)
                 _notifications.Report(CreateOperationNotice(outcomeKind, outcomeKind switch
                 {
+                    OperationNoticeKind.Success when upgrade => "GTNH 升级数据已迁入，待试运行",
                     OperationNoticeKind.Success => "实例数据迁移完成", OperationNoticeKind.Cancelled => "实例数据迁移已取消",
                     _ => "实例数据迁移未完成"
                 }, outcome, [sourcePath, target.InstancePath, MigrationJournalPath]));
         }
+        return outcomeKind == OperationNoticeKind.Success;
     }
 
     /// <summary>按本机写前日志恢复最近一次迁移；游戏后再次修改的文件由服务保留。</summary>

@@ -49,7 +49,14 @@ Screenshots are from an earlier Chinese test build and may differ from the curre
 
 - Choose a specific Prism/MultiMC client pack from the integrated China-based mirror, then download, import and prepare a new instance.
 - Browse categorized mods, resource packs and shaders with Chinese descriptions, source links and compatibility notes. Supported release files can be installed into a selected GTNH instance.
-- Import an old instance with its player data, then preview and migrate selected data to a newer instance. Keep the old instance while checking the result.
+- Start an upgrade from your old instance and choose a newer pack and Java variant in a separate dialog, with test releases available if needed. Confirm to download and prepare it without leaving the upgrade page, then review which player data and extra mods to carry over. Cancelling the dialog starts no download; you do not need to install the newer instance beforehand.
+
+### GTNH tools
+
+- Open the separate tools page directly below the GTNH hub in the sidebar. Search the flowchart catalog and open a chart on its own detail page. Returning keeps your filters and browsing position; uncreated entries stay in the catalog and are marked as pending.
+- Flowcharts load declarative data on demand and use a native interactive canvas for zooming, panning, group highlighting and Chinese/English views where supplied by the source. Successfully cached charts work offline. Each cache keeps its source, revision when available, retrieval time and license information; website icons and detailed recipe popups are not included.
+- If the wiki rejects direct retrieval, open the original page inside the launcher, wait for it to display normally and explicitly read it into the native chart. The data goes through the same validation before caching; this does not bypass the site's access controls.
+- The online quest book remains an embedded website and does not read or sync game progress. The quest book, online catalog updates and explicitly opening the original page need a network connection and WebView2; native charts do not. Chart data keeps its original license, separate from the launcher's GPL. See the [tools guide](docs/gtnh-tools.md).
 
 ### Mods and add-ons
 
@@ -74,19 +81,19 @@ Appearance settings are saved locally. See the [appearance guide](docs/appearanc
 
 ## Moving to a newer GTNH version
 
-Keep two instances: **the old one containing your player data**, and **a separate new version whose dependencies are complete and which starts successfully**. Close both games before migration.
+In the GTNH hub, open version upgrading and select **the old instance containing your player data**. You do not need to have the new version installed yet.
 
 If the old instance is still in another launcher, copy a supported folder with “Import from another launcher,” or export it and use “Import old instance (with local data)” in the GTNH hub. The folder or archive must actually contain your saves and maps; downloading the original pack again will not recover your play history.
 
-Choose the new instance as the destination, select the old instance and review what will be copied:
+Choose a higher-version Prism client pack and Java variant in the version-selection dialog. Confirm to download, import and prepare a **separate new instance** while staying on the upgrade page. If you already have a prepared newer instance, the local-instance option is still available. Test-launch the new version, exit normally and close both games before continuing to the data selection and file preview:
 
 - Worlds, NEI records, JourneyMap maps, ore-vein and Thaumcraft-node data, selected personal settings and server lists.
 - A server-player preset for local client data, without copying a server world.
-- Your language preference and individually selected extra mods. Extra mods require a separate compatibility warning and confirmation.
+- Your language preference and individually selected extra mods. All extra mods are unchecked by default and require a separate risk confirmation. Entries distinguish recorded additions from files whose origin you must confirm; a bundled Prism mod is not automatically treated as a player addition. Existing duplicates in the new version stay in place. Selected old mod files are copied as-is, without updating them or installing dependencies.
 
 GregShift leaves the old instance's game files intact and backs up destination files before changing them. Conflicting worlds are kept in separate folders rather than merged. The last migration can be undone when its recovery conditions still hold; recovery refuses to overwrite files changed afterwards.
 
-**This is client-data migration, not server upgrading.** It carries over language preferences, not an old Chinese translation pack. It cannot guarantee world compatibility across pack versions. Follow GTNH's update guidance and verify your saves when moving between major versions. See the [migration guide](docs/gtnh-player-data-migration.md) for supported files and recovery details.
+**This upgrades a GTNH client and carries over selected data; it does not upgrade a server.** It preserves your language preference, not an old Chinese translation pack. Completion means the data has been copied and still needs a trial run, not that the world or extra mods are compatible. Follow GTNH's update guidance and verify your saves when moving between major versions. See the [migration guide](docs/gtnh-player-data-migration.md) for supported files and recovery details.
 
 ## Getting started
 
@@ -110,7 +117,7 @@ Before upgrading or uninstalling, stop the game and launcher tasks, close GregSh
 
 Feature guides are currently in Chinese:
 
-- [GTNH hub](docs/gtnh-hub.md) · [Player-data migration](docs/gtnh-player-data-migration.md)
+- [GTNH hub](docs/gtnh-hub.md) · [Player-data migration](docs/gtnh-player-data-migration.md) · [GTNH tools](docs/gtnh-tools.md)
 - [Instance downloads](docs/instance-downloads.md) · [Download center](docs/download-center.md)
 - [Online mods](docs/online-mod-management.md) · [Local mod management](docs/local-mod-management.md)
 - [Java downloads](docs/java-downloads.md) · [Launch settings](docs/launching.md) · [Microsoft sign-in](docs/microsoft-login.md)

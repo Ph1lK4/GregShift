@@ -50,6 +50,7 @@
      <ListBoxItem Content="游玩" Style="{StaticResource NavigationSection}"/>
      <ListBoxItem><ListBoxItem.Tag><sys:Int32>0</sys:Int32></ListBoxItem.Tag><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE80F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0" VerticalAlignment="Center"/><TextBlock Text="本地实例"/></StackPanel></ListBoxItem>
      <ListBoxItem><ListBoxItem.Tag><sys:Int32>4</sys:Int32></ListBoxItem.Tag><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7C1;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0" VerticalAlignment="Center"/><TextBlock Text="GTNH 专区"/></StackPanel></ListBoxItem>
+     <ListBoxItem x:Name="GtnhToolsNavigation" AutomationProperties.Name="GTNH 工具"><ListBoxItem.Tag><sys:Int32>9</sys:Int32></ListBoxItem.Tag><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0" VerticalAlignment="Center"/><TextBlock Text="GTNH 工具"/></StackPanel></ListBoxItem>
      <ListBoxItem Content="发现与下载" Style="{StaticResource NavigationSection}"/>
      <ListBoxItem><ListBoxItem.Tag><sys:Int32>6</sys:Int32></ListBoxItem.Tag><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE896;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0" VerticalAlignment="Center"/><TextBlock Text="下载实例"/></StackPanel></ListBoxItem>
      <ListBoxItem><ListBoxItem.Tag><sys:Int32>1</sys:Int32></ListBoxItem.Tag><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE719;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0" VerticalAlignment="Center"/><TextBlock Text="在线模组"/></StackPanel></ListBoxItem>
@@ -179,6 +180,11 @@
    <views:JavaEnvironmentView DataContext="{Binding Java}" Visibility="{Binding DataContext.IsJavaPage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleWhenTrue}}"/>
    <views:LaunchSettingsView DataContext="{Binding Instances}" Visibility="{Binding DataContext.IsLaunchSettingsPage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleWhenTrue}}"/>
    <views:GtnhHubView DataContext="{Binding Gtnh}" Visibility="{Binding DataContext.IsGtnhPage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleWhenTrue}}"/>
+   <Grid x:Name="GtnhToolsMainPage" Visibility="{Binding IsGtnhToolsPage, Converter={StaticResource VisibleWhenTrue}}">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <StackPanel Margin="0,0,0,18"><TextBlock Text="GTNH 工具" Style="{StaticResource PageTitle}"/><TextBlock Text="工艺流程图与在线任务书，在启动器内查阅。" Style="{StaticResource PageSubtitle}"/></StackPanel>
+    <views:GtnhToolsView x:Name="GtnhToolsPage" Grid.Row="1" DataContext="{Binding Tools}"/>
+   </Grid>
    <views:AppearanceView DataContext="{Binding Appearance}" Visibility="{Binding DataContext.IsAppearancePage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleWhenTrue}}"/>
   </Grid>
   <!-- 收起工作区不停止后台操作，状态保留在对应实例服务中。 -->

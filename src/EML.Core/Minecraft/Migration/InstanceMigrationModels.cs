@@ -2,11 +2,24 @@ namespace EML.Core.Minecraft.Migration;
 
 public enum GtnhMigrationMode { FullClient, ServerClient }
 public enum MigrationFileAction { Copy, Identical, Conflict, Skip }
+/// <summary>只表达额外添加的证据，不代表模组与新版兼容；来源不明时必须由玩家确认。</summary>
+public enum GtnhExtraModCandidateKind { ConfirmedAddition, NeedsConfirmation }
 
 /// <summary>由包内标识确认的 GTNH 实例；名称本身不能授予迁移资格。</summary>
 public sealed record GtnhInstanceInfo(string InstancePath, string Name, string GameDirectory, string Version);
 /// <summary>一个可选择的数据组；世界单独列出，不混合两个同名存档。</summary>
-public sealed record MigrationGroup(string Id, string Name, bool Recommended);
+public sealed record MigrationGroup(string Id, string Name, bool Recommended)
+{
+    /// <summary>普通玩家数据组不设置；仅明确登记或此前迁入的模组可标记为已确认额外添加。</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public GtnhExtraModCandidateKind? ExtraModKind { get; init; }
+    /// <summary>显示识别依据，不用“旧版有、新版没有”推断玩家新增。</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
+    /// <summary>按保存的平台固定身份匹配的专区项目名；收录不证明其为玩家新增或兼容新版。</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? AddonName { get; init; }
+}
 /// <summary>用户在预览前选择的数据范围；两个确认分别对应新版实测和外部游戏关闭。</summary>
 public sealed record InstanceMigrationRequest(string SourceInstance, string TargetInstance, GtnhMigrationMode Mode,
     IReadOnlyList<string> Groups, bool TargetTested, bool GamesClosed)

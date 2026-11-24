@@ -26,7 +26,8 @@ public sealed partial class GtnhMigrationTests
             Assert.Equal(3, groups.Count);
             Assert.All(groups, group => Assert.False(group.Recommended));
             Assert.Contains(groups, group => group.Id == "mod:mods/imported.jar" && group.Name.Contains("需确认是自己添加"));
-            Assert.Contains(groups, group => group.Id == "mod:mods/added.jar.disabled" && group.Name.Contains("导入后新增"));
+            Assert.Contains(groups, group => group.Id == "mod:mods/added.jar.disabled" && group.Name.Contains("来源待确认"));
+            Assert.All(groups, group => Assert.Equal(GtnhExtraModCandidateKind.NeedsConfirmation, group.ExtraModKind));
         }
     }
 
@@ -227,6 +228,8 @@ public sealed partial class GtnhMigrationTests
         Assert.False(Directory.Exists(Path.Combine(imported.InstancePath, MigrationJournalStore.Root)));
         var groups = await Service.GetGroupsAsync(imported.InstancePath, GtnhMigrationMode.FullClient);
         Assert.Contains(groups, group => group.Id == "mod:mods/custom.jar" && group.Name.Contains("此前手动迁入"));
+        Assert.Equal(GtnhExtraModCandidateKind.ConfirmedAddition,
+            Assert.Single(groups, group => group.Id == "mod:mods/custom.jar").ExtraModKind);
         // 备份重导入后仍可以接受新的版本，不依赖原电脑的本机状态文件。
         Write(imported.GameDirectory, "mods/custom.jar", "chosen after restore");
         await new InstanceLocalReplacementService(_root).AcceptExistingAsync(imported.InstancePath, record.Path);

@@ -16,6 +16,10 @@ function Test-EmlReleasePath {
         throw "Invalid release path: $RelativePath"
     }
     $parts = $path.Split('/')
+    # RID 发布只保留程序目录中的 x64 WebView2 加载器，不放开任意 runtimes/ 目录。
+    if ($Layout -eq 'AppDirectory') {
+        if (-not $Directory -and $path -ceq 'app/WebView2Loader.dll') { return }
+    }
     foreach ($part in $parts) {
         if ($part -imatch '^\.eml-' -or $part -iin @('instances', 'settings', 'runtimes', 'cache', 'accounts', 'logs', 'log', 'tests', 'testresults', 'bin', 'obj', '.git', '.vs')) {
             throw "Personal data or development directory is forbidden in a release: $path"
@@ -23,8 +27,8 @@ function Test-EmlReleasePath {
     }
     $culturePattern = '^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$'
     $documents = @('LICENSE', 'SOURCE.txt', 'PRIVACY.md', 'SECURITY.md',
-        'LICENSE-DOTNET.txt', 'LICENSE-MVVM.txt', 'THIRD-PARTY-NOTICES.txt',
-        'uninstall.md', 'code-signing.md', 'release-rc1.md', 'release-rc2.md')
+        'LICENSE-DOTNET.txt', 'LICENSE-MVVM.txt', 'LICENSE-WEBVIEW2.txt', 'LICENSE-GTNH-PLANNER-ZH.txt', 'THIRD-PARTY-NOTICES.txt',
+        'uninstall.md', 'code-signing.md', 'release-rc1.md', 'release-rc2.md', 'gtnh-tools.md', 'gtnh-native-tools.md', 'gtnh-planner-notices.md')
     if ($Directory) {
         if ($path -ceq 'docs') { return }
         if ($Layout -eq 'AppDirectory') {
@@ -62,6 +66,7 @@ function Test-EmlReleasePath {
     $fixedFiles = @(
         'EML.App.exe', 'EML.App.dll', 'EML.Core.dll', 'EML.Infrastructure.dll',
         'CommunityToolkit.Mvvm.dll', 'EML.App.deps.json', 'EML.App.runtimeconfig.json',
+        'Microsoft.Web.WebView2.Core.dll', 'Microsoft.Web.WebView2.Wpf.dll',
         'microsoft-login.json', 'release-manifest.json', 'START-HERE.txt', 'UPGRADE.txt',
         'THIRD-PARTY-NOTICES.txt', 'LICENSE-DOTNET.txt', 'LICENSE-MVVM.txt',
         'LICENSE', 'SOURCE.txt', 'PRIVACY.md', 'SECURITY.md',
@@ -193,7 +198,12 @@ function Test-EmlReleaseLayout {
     ) | ForEach-Object { $programPrefix + $_ }
     $required += @('LICENSE-DOTNET.txt', 'LICENSE-MVVM.txt', 'THIRD-PARTY-NOTICES.txt',
         'LICENSE', 'SOURCE.txt', 'PRIVACY.md', 'SECURITY.md') | ForEach-Object { $documentPrefix + $_ }
-    if ($Layout -eq 'AppDirectory') { $required += @('app/eml-layout.json', 'docs/release-rc2.md') }
+    if ($Layout -eq 'AppDirectory') {
+        $required += @('app/eml-layout.json', 'docs/release-rc2.md', 'docs/gtnh-tools.md', 'docs/gtnh-native-tools.md',
+            'docs/gtnh-planner-notices.md', 'docs/LICENSE-GTNH-PLANNER-ZH.txt',
+            'docs/LICENSE-WEBVIEW2.txt', 'app/Microsoft.Web.WebView2.Core.dll',
+            'app/Microsoft.Web.WebView2.Wpf.dll', 'app/WebView2Loader.dll')
+    }
     foreach ($name in $required) {
         if (-not (Test-Path -LiteralPath (Join-Path $root $name) -PathType Leaf)) {
             throw "Required self-contained release file is missing: $name"
@@ -201,6 +211,10 @@ function Test-EmlReleaseLayout {
     }
     if ($Layout -eq 'AppDirectory') { Assert-EmlLayoutMarker -Path (Join-Path $root 'app/eml-layout.json') }
     Assert-EmlAmd64Executable -Path (Join-Path $root $entryPoint)
+    if ($Layout -eq 'AppDirectory') {
+        try { Assert-EmlAmd64Executable -Path (Join-Path $root 'app/WebView2Loader.dll') }
+        catch { throw 'The WebView2 loader must be a valid Windows AMD64 (win-x64) binary.' }
+    }
     foreach ($name in @($entryPoint, "${programPrefix}EML.App.dll", "${programPrefix}EML.Core.dll", "${programPrefix}EML.Infrastructure.dll")) {
         $information = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $root $name))
         if ($information.FileVersion -ne '1.0.0.0' -or $information.ProductVersion -ne $Version) {

@@ -1,7 +1,9 @@
 using EML.Core.Minecraft;
+using EML.Core.Minecraft.Gtnh;
 using EML.Core.Minecraft.Migration;
 using EML.Core.Minecraft.Mods;
 using EML.Infrastructure.Minecraft.CurseForge;
+using EML.Infrastructure.Minecraft.Gtnh;
 using EML.Infrastructure.Minecraft.Importing;
 using EML.Infrastructure.Minecraft.Mods;
 
@@ -26,22 +28,56 @@ internal static class GtnhExtraModCatalog
             .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
-    /// <summary>导入记录只能区分导入后新增；原包内文件须由用户确认，全部默认不选。</summary>
+    /// <summary>只把明确登记或此前迁入的模组标记为额外添加；导入时间和目录收录不授予这一身份。</summary>
     internal static IReadOnlyList<MigrationGroup> Groups(GtnhInstanceInfo source, CancellationToken token)
     {
         var manifest = InstanceManifestStore.Read(Path.Combine(source.InstancePath, InstanceImportManifest.FileName));
         var prefix = manifest.GameDirectory == "." ? "" : manifest.GameDirectory + "/";
-        var imported = manifest.Files.Where(file => file.Path is not null).Select(file => file.Path!).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var imported = manifest.Files.Where(file => file.Path is not null)
+            .GroupBy(file => LocalModPathPolicy.EnabledPath(file.Path!), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
         var migrated = MigrationDataStore.Read(source.InstancePath, manifest).Files.Where(file => file.Rule == GtnhExtraModPolicy.Rule)
-            .Select(file => file.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .GroupBy(file => LocalModPathPolicy.EnabledPath(file.Path), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
         var managed = ModManagementStore.Read(source.InstancePath, manifest).Files.ToDictionary(
             record => LocalModPathPolicy.EnabledPath(record.Baseline.Path!), StringComparer.OrdinalIgnoreCase);
-        return Paths(source.GameDirectory, token).Select(path => new MigrationGroup(GtnhExtraModPolicy.GroupPrefix + path,
-            path + (managed.TryGetValue(LocalModPathPolicy.EnabledPath(prefix + path), out var record)
-                ? record.State == LocalModState.Removed ? "（已移除记录的外部副本，需先确认）" : "（玩家已登记管理）"
-                : migrated.Contains(prefix + path) ? "（此前手动迁入）" : imported.Contains(prefix + path)
-                ? "（导入时已存在，需确认是自己添加）" : "（导入后新增）"), false)).ToArray();
+        return Paths(source.GameDirectory, token).Select(path =>
+        {
+            var identity = LocalModPathPolicy.EnabledPath(prefix + path);
+            managed.TryGetValue(identity, out var record);
+            migrated.TryGetValue(identity, out var prior);
+            imported.TryGetValue(identity, out var original);
+            var registeredPath = record is null ? prior?.Path : ModManagementStore.CurrentPath(record);
+            var confirmed = registeredPath is not null && registeredPath.Equals(prefix + path, StringComparison.OrdinalIgnoreCase);
+            var externalCopy = record is not null || prior is not null;
+            var label = externalCopy && !confirmed ? "已登记模组的外部副本，需先处理"
+                : record is { Added: true } ? "EML 已确认额外添加"
+                : prior is not null ? "此前手动迁入"
+                : original is not null ? "导入时已存在，需确认是自己添加" : "导入后发现，来源待确认";
+            var description = externalCopy && !confirmed
+                ? "此文件与已登记模组的当前位置不一致，不能通过升级重新接受内容；请先在模组管理中处理。"
+                : confirmed ? "有明确的玩家模组管理或此前迁入记录。仍需核对新版兼容性，默认不迁移。"
+                : original is not null
+                    ? "Prism 等成品实例可能已包含原包模组；导入记录不能区分原包与玩家添加，请只勾选自己确认添加的模组。"
+                    : "仅能确认当前文件未在导入清单中声明，不能证明它由玩家添加；请自行核对旧版原包。";
+            return new MigrationGroup(GtnhExtraModPolicy.GroupPrefix + path, path + "（" + label + "）", false)
+            {
+                ExtraModKind = confirmed ? GtnhExtraModCandidateKind.ConfirmedAddition : GtnhExtraModCandidateKind.NeedsConfirmation,
+                Description = description,
+                AddonName = KnownAddon(record?.Baseline ?? prior?.OnlineModBaseline ?? original)?.Name
+            };
+        }).ToArray();
     }
+
+    /// <summary>只用已经保存的固定平台身份关联专区目录；不按文件名猜测项目或玩家来源。</summary>
+    private static GtnhAddon? KnownAddon(InstanceFileRequirement? file) => file is null ? null :
+        GtnhAddonCatalog.Items.FirstOrDefault(addon => addon.Kind is GtnhAddonKind.Mod or GtnhAddonKind.ShaderLoader &&
+            (addon.Provider == GtnhAddonProvider.Github && file.GithubReleaseOrigin is { } github &&
+                addon.Repository.Equals(github.Repository, StringComparison.OrdinalIgnoreCase) ||
+             addon.Provider == GtnhAddonProvider.CurseForge && addon.CurseForgeProjectId is { } project &&
+                project == (file.CurseForgeOrigin?.ProjectId ?? file.ProjectId) ||
+             addon.Provider == GtnhAddonProvider.Modrinth && addon.ModrinthProjectId is { } modrinth &&
+                modrinth.Equals(file.ModrinthOrigin?.ProjectId, StringComparison.Ordinal)));
 
     /// <summary>目标模组的内容和标识均参与预览指纹，防止预览后安装同模组另一版本。</summary>
     internal static async Task<IReadOnlyList<Mod>> SnapshotAsync(string game, CancellationToken token)

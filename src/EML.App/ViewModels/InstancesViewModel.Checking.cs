@@ -99,7 +99,8 @@ public partial class InstancesViewModel
     private bool CanCancelDependencyDownload() => _downloadCancellation is { IsCancellationRequested: false };
 
     /// <summary>对固定实例路径补全并复查；调用方持有忙碌状态，导入阶段无需执行另一个界面命令。</summary>
-    private async Task<OperationNotice> RunDownloadAsync(string instancePath, CancellationToken operationToken, bool afterImport = false)
+    private async Task<OperationNotice> RunDownloadAsync(string instancePath, CancellationToken operationToken, bool afterImport = false,
+        Action<InstanceDownloadReport>? reportCompleted = null)
     {
         ClearCheckResults();
         SelectedDetailTab = 2;
@@ -124,6 +125,7 @@ public partial class InstancesViewModel
                     TransferStatus += $"  {download.BytesReceived / 1048576.0:F1} MiB";
             });
             var report = await _instanceDownloader.DownloadMissingAsync(instancePath, progress, token);
+            if (!token.IsCancellationRequested) reportCompleted?.Invoke(report);
             ++_transferRevision;
             DownloadFiles = report.Files;
             if (report.CheckReport is { } checkReport) ApplyCheckReport(checkReport);

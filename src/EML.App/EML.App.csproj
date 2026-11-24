@@ -7,10 +7,14 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
     <None Update="microsoft-login.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <InternalsVisibleTo Include="EML.App.Tests" />
     <Resource Include="Assets\Branding\eml.ico" />
     <Resource Include="Assets\Branding\eml.png" />
+    <EmbeddedResource Include="Resources\GtnhPlanner\*.json" />
+    <EmbeddedResource Include="Resources\GtnhPlanner\*.js" />
+    <EmbeddedResource Include="Resources\GtnhPlanner\LICENSE.txt" />
   </ItemGroup>
 
   <PropertyGroup>

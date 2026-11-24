@@ -58,6 +58,16 @@ public sealed class LauncherViewsSmokeTests
             {
                 Source = new Uri("/EML.App;component/Themes/LauncherTheme.xaml", UriKind.Relative)
             });
+            if (Environment.GetEnvironmentVariable("EML_UPGRADE_PREVIEW_ONLY") == "1")
+            {
+                VerifyGtnhUpgradeStates(new Border { Width = 720, Height = 520 });
+                return;
+            }
+            if (Environment.GetEnvironmentVariable("EML_UPGRADE_DIALOG_PREVIEW_ONLY") == "1")
+            {
+                GtnhUpgradeVersionDialogChecks.Run(DialogAppearanceChecks.Render);
+                return;
+            }
             NavyThemeChecks.Run();
             BrandingChecks.Run();
             WorkspaceAccessibilityChecks.Run();
@@ -89,6 +99,10 @@ public sealed class LauncherViewsSmokeTests
             VerifySingleLineTextVisibility(host);
             VerifyInputsAndDropdowns(host);
             VerifyGtnhPages(host);
+            VerifyGtnhUpgradeStates(host);
+            GtnhToolsViewChecks.Run(host);
+            GtnhNativeToolViewChecks.Run(host);
+            GtnhFlowCanvasChecks.Run(host);
             VerifyGtnhMigrationImportEntry(host);
             VerifyGtnhPackDownloads(host);
             VerifySharedLaunchIdentity(host);
@@ -207,7 +221,7 @@ public sealed class LauncherViewsSmokeTests
     }
 
     /// <summary>预览使用常规页面尺寸，断言继续使用最小尺寸；导出后恢复原有测试布局。</summary>
-    private static void WritePageOverview(Border host, FrameworkElement page, string name)
+    private static void WritePageOverview(Border host, FrameworkElement page, string name, double scale = 1)
     {
         if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("EML_TEXTBOX_PREVIEW_DIRECTORY"))) return;
         var width = host.Width; var height = host.Height;
@@ -215,7 +229,7 @@ public sealed class LauncherViewsSmokeTests
         {
             host.Width = 1000; host.Height = 700;
             foreach (var scroll in VisualDescendants(page).OfType<ScrollViewer>()) scroll.ScrollToTop();
-            Layout(host); WriteTextPreview(page, name);
+            Layout(host); WriteTextPreview(page, name, scale);
         }
         finally { host.Width = width; host.Height = height; Layout(host); }
     }
@@ -466,13 +480,13 @@ public sealed class LauncherViewsSmokeTests
     }
 
     /// <summary>按测试调用方指定的目录导出实际页面离屏渲染，便于检查字形；默认不生成文件。</summary>
-    private static void WriteTextPreview(FrameworkElement page, string fileName = "textbox-content.png")
+    private static void WriteTextPreview(FrameworkElement page, string fileName = "textbox-content.png", double scale = 1)
     {
         var directory = Environment.GetEnvironmentVariable("EML_TEXTBOX_PREVIEW_DIRECTORY");
         if (string.IsNullOrWhiteSpace(directory)) return;
         Directory.CreateDirectory(directory);
-        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(page.ActualWidth), (int)Math.Ceiling(page.ActualHeight),
-            96, 96, PixelFormats.Pbgra32);
+        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(page.ActualWidth * scale), (int)Math.Ceiling(page.ActualHeight * scale),
+            96 * scale, 96 * scale, PixelFormats.Pbgra32);
         bitmap.Render(page);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
@@ -496,7 +510,7 @@ public sealed class LauncherViewsSmokeTests
             var target = Assert.Single(VisualDescendants(page).OfType<ComboBox>(), item =>
                 BindingOperations.GetBinding(item, Selector.SelectedItemProperty)?.Path.Path == "SelectedTarget");
             Assert.Same(model.SelectedTarget, target.SelectedItem);
-            Assert.Contains(VisualDescendants(target).OfType<TextBlock>(), item => item.Text.Contains("GTNH 2.9.0"));
+            Assert.Contains(VisualDescendants(target).OfType<TextBlock>(), item => item.Text.Contains(model.SelectedTarget.Name));
             var visibleText = VisualDescendants(page).OfType<TextBlock>().Where(item => item.IsVisible || IsLocallyVisible(item, page))
                 .Select(item => item.Text).ToArray();
             Assert.Contains(section == 1 ? "把熟悉的世界，带到新版 GTNH" : "安装前看这里", visibleText);
@@ -509,6 +523,7 @@ public sealed class LauncherViewsSmokeTests
                 Assert.Equal(model.SelectedCategory, category.SelectedItem);
                 Assert.Contains("来源：" + model.SelectedAddon.SourceDisplay, visibleText);
                 var search = Assert.Single(VisualDescendants(page).OfType<TextBox>(), item =>
+                    ReferenceEquals(item.DataContext, model) &&
                     BindingOperations.GetBinding(item, TextBox.TextProperty)?.Path.Path == "SearchText");
                 search.SetCurrentValue(TextBox.TextProperty, "建筑工具 WorldEdit");
                 Layout(host);
@@ -520,6 +535,55 @@ public sealed class LauncherViewsSmokeTests
                 detail.ScrollToBottom(); Layout(host);
                 Assert.True(detail.VerticalOffset > 0, "小窗口必须能滚动到安装操作和结果。");
             }
+        }
+    }
+
+    /// <summary>升级主入口和准备完成状态在深浅主题、小窗口中均可读、可到达。</summary>
+    private static void VerifyGtnhUpgradeStates(Border host)
+    {
+        var application = Application.Current;
+        var dictionaries = application.Resources.MergedDictionaries.ToArray();
+        var saved = application.Resources.Keys.Cast<object>().ToDictionary(key => key, key => application.Resources[key]);
+        var directory = Path.Combine(Path.GetTempPath(), "EML-upgrade-view-" + Guid.NewGuid().ToString("N"));
+        var previewHost = new Border { Width = host.Width, Height = host.Height };
+        var owner = new Window { Content = previewHost };
+        using var appearance = new AppearanceService(directory, watchSystemTheme: false);
+        try
+        {
+            foreach (var scale in new[] { 1d, 2d })
+            foreach (var dark in new[] { true, false })
+            foreach (var prepared in new[] { false, true })
+            {
+                appearance.Apply(appearance.Settings with { ThemeMode = dark ? AppearanceThemeMode.Dark : AppearanceThemeMode.Light });
+                VisualTreeHelper.SetRootDpi(previewHost, new DpiScale(scale, scale));
+                var model = new GtnhPreview(1, false, prepared);
+                var page = new GtnhHubView
+                {
+                    DataContext = model, FontFamily = new FontFamily("Microsoft YaHei UI"), FontSize = 14,
+                    Background = (Brush)application.FindResource("WindowBackgroundBrush")
+                };
+                previewHost.Child = page; Layout(previewHost);
+                var action = Assert.Single(VisualDescendants(page).OfType<Button>(), button =>
+                    Equals(button.Content, prepared ? "继续升级 · 选择数据" : "升级 GTNH · 选择新版"));
+                Assert.Same(prepared ? model.ContinueUpgradeCommand : model.PrepareUpgradeDownloadCommand, action.Command);
+                Assert.True(action.IsEnabled);
+                action.BringIntoView(); Layout(previewHost);
+                var bounds = action.TransformToAncestor(page).TransformBounds(new Rect(action.RenderSize));
+                Assert.True(bounds.Top >= 0 && bounds.Bottom <= page.ActualHeight);
+                Assert.True(bounds.Left >= 0 && bounds.Right <= page.ActualWidth);
+                Assert.Contains(VisualDescendants(page).OfType<TextBlock>(), text => text.Text == model.UpgradeSourceName);
+                var scroll = Assert.IsType<ScrollViewer>(page.FindName("MigrationScroll"));
+                scroll.ScrollToBottom(); Layout(previewHost); Assert.True(scroll.VerticalOffset > 0);
+                WritePageOverview(previewHost, page, $"gtnh-upgrade-{(prepared ? "prepared" : "choose")}-{(dark ? "dark" : "light")}-{(int)(96 * scale)}dpi.png", scale);
+            }
+        }
+        finally
+        {
+            previewHost.Child = null; owner.Content = null; owner.Close();
+            application.Resources.Clear();
+            application.Resources.MergedDictionaries.Clear();
+            foreach (var dictionary in dictionaries) application.Resources.MergedDictionaries.Add(dictionary);
+            foreach (var (key, value) in saved) application.Resources[key] = value;
         }
     }
 
@@ -552,7 +616,7 @@ public sealed class LauncherViewsSmokeTests
         var bounds = button.TransformToAncestor(page).TransformBounds(new Rect(button.RenderSize));
         Assert.True(bounds.Left >= 0 && bounds.Right <= page.ActualWidth);
         Assert.True(bounds.Top >= 0 && bounds.Bottom <= page.ActualHeight);
-        var migration = Assert.Single(VisualDescendants(page).OfType<Button>(), item => Equals(item.Content, "从旧 GTNH 迁入数据"));
+        var migration = Assert.Single(VisualDescendants(page).OfType<Button>(), item => Equals(item.Content, "升级 GTNH · 选择新版"));
         Assert.False(migration.IsEnabled);
         scroll.ScrollToBottom(); Layout(host);
         Assert.True(scroll.VerticalOffset > 0, "小窗口必须能滚动阅读迁移步骤及结果。");
@@ -643,9 +707,9 @@ public sealed class LauncherViewsSmokeTests
     }
 
     /// <summary>仅供离屏绑定的预览数据，不创建服务、不执行下载或修改实例。</summary>
-    private sealed class GtnhPreview(int section, bool nonStargate)
+    private sealed class GtnhPreview(int section, bool nonStargate, bool prepared = false)
     {
-        public GtnhInstanceInfo[] Targets { get; } = [new("C:\\preview", "GTNH 2.9.0 · 生存服", "C:\\preview\\.minecraft", "2.9.0")];
+        public GtnhInstanceInfo[] Targets { get; } = [new("C:\\preview", section == 1 ? "GTNH 2.8.4 · 旧存档" : "GTNH 2.9.0 · 生存服", "C:\\preview\\.minecraft", section == 1 ? "2.8.4" : "2.9.0")];
         public GtnhInstanceInfo SelectedTarget { get => Targets[0]; set { } }
         public GtnhAddon[] Addons { get; } = [new("preview",
             section == 2 ? "GTNH 深色界面 · 示例" : section == 3 ? "光影项目 · 示例" : nonStargate ? "扭曲时空科技 · 示例" : "WorldEdit · 建筑工具",
@@ -657,6 +721,17 @@ public sealed class LauncherViewsSmokeTests
         public GtnhAddonRelease SelectedRelease { get => Releases[0]; set { } }
         public bool CanInteract => true;
         public bool HasTarget => true;
+        public bool HasPreparedUpgrade => prepared;
+        public bool IsPreparingUpgrade => false;
+        public string UpgradeSourceName => "GTNH 2.8.4 · 旧存档";
+        public string UpgradeSourceVersion => "2.8.4";
+        public string UpgradeTargetName => prepared ? "GTNH 2.9.0 · 新实例" : "选择要下载的新版本";
+        public string UpgradeStatus => prepared ? "GTNH 2.9.0 已下载、导入并补全。请先试运行新版，再继续选择玩家数据。" : "选择旧实例后即可下载新版，无需提前导入。";
+        public bool UpgradeServerClient { get; set; }
+        public ICommand PrepareUpgradeDownloadCommand { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { });
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand ContinueUpgradeCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
+        public ICommand ContinueUpgradeCancelCommand { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { });
+        public ICommand TrialUpgradeCommand { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { });
         public bool IsRecommendations => section == 0;
         public bool IsMigration => section == 1;
         public bool IsResourcePacks => section == 2;
@@ -679,12 +754,12 @@ public sealed class LauncherViewsSmokeTests
         public string MigrationImportHint => "导入后会自动补全依赖，再选择新版作为接收方；不会自动开始迁移。";
         public bool CompatibilityConfirmed { get; set; }
         public string SearchText { get; set; } = "";
-        public string TargetStatus => "已识别 2 个 GTNH 实例。推荐模组安装与数据迁移都使用上方选择的目标。";
+        public string TargetStatus => "已识别 2 个 GTNH 实例。在版本升级中选择要升级的旧实例。";
         public string ReleaseStatus => "请选择发行版本并核对适配说明。不会自动采用最新版本。";
         public string InstallStatus => "确认目标实例和发行说明后再安装。";
         public string DownloadText => "";
         public double DownloadPercent => 0;
-        public object Instances { get; } = new { TransferPercent = 0, TransferStatus = "", MigrationStatus = "选择旧实例后可预览迁移范围。", MigrationJournalPath = "" };
+        public object Instances { get; } = new { TransferPercent = 0, TransferStatus = "", MigrationStatus = "选择旧实例后可预览迁移范围。", MigrationJournalPath = "", IsGameRunning = false, StopGameCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { }) };
     }
 
     /// <summary>读取实际文本视口和首尾字符矩形，确认行高与文字边界均没有被内容区裁掉。</summary>

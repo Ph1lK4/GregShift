@@ -1,4 +1,22 @@
 <Project>
+  <!-- 发布包只携带 x64 浏览器加载器；开发构建保留 SDK 的 AnyCPU 行为。 -->
+  <PropertyGroup Condition="'$(EMLReleasePackage)' == 'true'">
+    <PlatformTarget>x64</PlatformTarget>
+    <!-- RID 发布已由 NuGet 提供根目录原生资产，不再复制 AnyCPU 架构目录副本。 -->
+    <WebView2NeverCopyLoaderDllToOutputDirectory>true</WebView2NeverCopyLoaderDllToOutputDirectory>
+  </PropertyGroup>
+  <!-- 上游 SDK 的 IntelliSense XML 不是运行依赖，不进入玩家发布包。 -->
+  <Target Name="ExcludeWebView2ReferenceDocumentation" AfterTargets="ComputeFilesToPublish"
+          Condition="'$(EMLReleasePackage)' == 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+          Condition="'%(ResolvedFileToPublish.Filename)' == 'Microsoft.Web.WebView2.Core' And '%(ResolvedFileToPublish.Extension)' == '.xml'" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+          Condition="'%(ResolvedFileToPublish.Filename)' == 'Microsoft.Web.WebView2.Wpf' And '%(ResolvedFileToPublish.Extension)' == '.xml'" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+          Condition="'%(ResolvedFileToPublish.Filename)' == 'Microsoft.Web.WebView2.WinForms' And '%(ResolvedFileToPublish.Extension)' == '.xml'" />
+    </ItemGroup>
+  </Target>
   <!-- 只在正式打包和 CI 显式开启；F5、测试、普通 publish 保持 SDK 默认行为。 -->
   <ItemGroup Condition="'$(EMLStructuredRelease)' == 'true'">
     <None Include="$(MSBuildThisFileDirectory)release-assets\eml-layout.json" Link="eml-layout.json" CopyToPublishDirectory="Always" />

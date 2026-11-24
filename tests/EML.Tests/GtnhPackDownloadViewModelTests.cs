@@ -3,12 +3,132 @@ using EML.App.ViewModels;
 using EML.Core.Downloads;
 using EML.Core.Minecraft.Catalog;
 using EML.Core.Minecraft.Gtnh;
+using EML.Core.Minecraft.Migration;
 
 namespace EML.Tests;
 
 /// <summary>用内存目录和受控安装任务测试镜像页，不下载大文件、不创建真实实例。</summary>
 public sealed class GtnhPackDownloadViewModelTests
 {
+    /// <summary>无需本地新版；直接在镜像目录选择更高版本，使用数字而非字符串比较。</summary>
+    [Fact]
+    public async Task UpgradeFiltersToNumericallyNewerMirrorVersionsWithoutLocalTarget()
+    {
+        await using var fixture = new Fixture();
+        var newer = Release("2.10.0", "17-26");
+        fixture.Service.Query = (_, _) => Task.FromResult<IReadOnlyList<GtnhPackRelease>>(
+            [Release("2.8.4", "8"), Stable, Release("2.9.0-extra", "17-26"), Release("unknown", "8"), newer]);
+        fixture.Model.ConfigureUpgrade(UpgradeSource("2.9.0"));
+        await fixture.OpenAsync();
+
+        Assert.Equal([newer], fixture.Model.Releases);
+        Assert.Null(fixture.Model.SelectedRelease);
+        Assert.True(fixture.Model.IsUpgrade);
+        Assert.Contains("旧存档", fixture.Model.UpgradeHint);
+        Assert.Contains("独立", fixture.Model.UpgradeHint);
+        Assert.Equal("下载新版并继续升级", fixture.Model.InstallButtonText);
+        fixture.Model.SelectedRelease = newer;
+        await fixture.Model.InstallCommand.ExecuteAsync(null);
+        Assert.Equal([newer], fixture.Installed);
+        Assert.Single(fixture.Service.Queries);
+    }
+
+    /// <summary>切换旧版来源清空选择并本地过滤；取消升级上下文恢复普通下载范围。</summary>
+    [Fact]
+    public async Task UpgradeContextChangesClearSelectionAndRestoreOrdinaryCatalogWithoutQuery()
+    {
+        await using var fixture = new Fixture();
+        await fixture.OpenAsync();
+        fixture.Model.SelectedRelease = Stable;
+        fixture.Model.ConfigureUpgrade(UpgradeSource("2.8.4"));
+        Assert.Null(fixture.Model.SelectedRelease);
+        Assert.Equal(2, fixture.Model.Releases.Count);
+        fixture.Model.SelectedRelease = Stable;
+        fixture.Model.ConfigureUpgrade(UpgradeSource("2.9.0"));
+        Assert.Empty(fixture.Model.Releases);
+        Assert.Null(fixture.Model.SelectedRelease);
+        Assert.False(fixture.Model.InstallCommand.CanExecute(null));
+        fixture.Model.ConfigureUpgrade(null);
+        Assert.False(fixture.Model.IsUpgrade);
+        Assert.Equal(2, fixture.Model.Releases.Count);
+        Assert.Null(fixture.Model.SelectedRelease);
+        Assert.Equal("下载并导入", fixture.Model.InstallButtonText);
+        Assert.Single(fixture.Service.Queries);
+    }
+
+    /// <summary>升级版本限制和原有 Java、测试版筛选取交集，不因升级自动勾选测试包。</summary>
+    [Fact]
+    public async Task UpgradeFilteringIntersectsJavaAndPrereleaseChoices()
+    {
+        await using var fixture = new Fixture();
+        var beta = Release("2.10.0-beta-1", "17-26", true);
+        fixture.Service.Query = (_, _) => Task.FromResult<IReadOnlyList<GtnhPackRelease>>([Stable, Java8, Beta, beta]);
+        fixture.Model.ConfigureUpgrade(UpgradeSource("2.9.0"));
+        await fixture.OpenAsync();
+        Assert.Empty(fixture.Model.Releases);
+        fixture.Model.IncludePrereleases = true;
+        await fixture.Model.ReleasesLoadTask;
+        Assert.Equal([beta], fixture.Model.Releases);
+        fixture.Model.SelectedRelease = beta;
+        fixture.Model.JavaFilterIndex = 2;
+        Assert.Empty(fixture.Model.Releases);
+        Assert.Null(fixture.Model.SelectedRelease);
+        Assert.Equal([false, true], fixture.Service.Queries);
+    }
+
+    /// <summary>目录请求中的来源切换不产生额外联网；迟到目录仍按当前旧版过滤。</summary>
+    [Fact]
+    public async Task LateCatalogResponseUsesCurrentUpgradeSource()
+    {
+        await using var fixture = new Fixture();
+        var pending = Signal<IReadOnlyList<GtnhPackRelease>>();
+        fixture.Service.Query = (_, _) => pending.Task;
+        fixture.Model.ConfigureUpgrade(UpgradeSource("2.8.4"));
+        fixture.Model.SetActive(true);
+        fixture.Model.ConfigureUpgrade(UpgradeSource("2.9.0"));
+        pending.SetResult([Stable, Release("2.10.0", "17-26")]);
+        await fixture.Model.ReleasesLoadTask;
+        Assert.Equal("2.10.0", Assert.Single(fixture.Model.Releases).Version);
+        Assert.Single(fixture.Service.Queries);
+    }
+
+    /// <summary>安装确认后冻结升级来源；不会把下载结束后的数据转移到另一个实例。</summary>
+    [Fact]
+    public async Task UpgradeSourceCannotChangeDuringInstallation()
+    {
+        await using var fixture = new Fixture();
+        var pending = Signal<string>();
+        fixture.Install = (_, _, _) => pending.Task;
+        fixture.Model.ConfigureUpgrade(UpgradeSource("2.8.4"));
+        await fixture.OpenAsync();
+        fixture.Model.SelectedRelease = Stable;
+        var install = fixture.Model.InstallCommand.ExecuteAsync(null);
+        fixture.Model.ConfigureUpgrade(UpgradeSource("2.10.0"));
+        fixture.Model.ConfigureUpgrade(null);
+        Assert.True(fixture.Model.IsUpgrade);
+        Assert.Contains("2.8.4", fixture.Model.UpgradeHint);
+        Assert.Equal(Stable, fixture.Model.SelectedRelease);
+        pending.SetResult("已导入，等待确认升级内容。");
+        await install;
+        Assert.Equal("已导入，等待确认升级内容。", fixture.Model.InstallStatus);
+        Assert.Empty(fixture.Notices.Items);
+    }
+
+    /// <summary>来源版本无法解析时不猜测升级方向，也不自动回退成普通下载。</summary>
+    [Fact]
+    public async Task UnknownUpgradeSourceDoesNotOfferAnyRelease()
+    {
+        await using var fixture = new Fixture();
+        fixture.Model.ConfigureUpgrade(UpgradeSource("unknown"));
+        await fixture.OpenAsync();
+        Assert.Empty(fixture.Model.Releases);
+        Assert.True(fixture.Model.IsUpgrade);
+        Assert.False(fixture.Model.InstallCommand.CanExecute(null));
+    }
+
+    private static GtnhInstanceInfo UpgradeSource(string version) =>
+        new(@"C:\test\instances\old", "旧存档", @"C:\test\instances\old\.minecraft", version);
+
     /// <summary>构造与隐藏筛选不联网；无本地实例的页面也能打开并明确选择新包。</summary>
     [Fact]
     public async Task OpensWithoutExistingInstanceAndRequiresExplicitSelection()

@@ -31,6 +31,7 @@
     <Compile Include="..\..\src\EML.App\ViewModels\DownloadCenterViewModel.cs" Link="App\DownloadCenterViewModel.cs" />
     <Compile Include="..\..\src\EML.App\Services\InstanceCatalogDisplayText.cs" Link="App\InstanceCatalogDisplayText.cs" />
     <Compile Include="..\..\src\EML.App\ViewModels\GtnhHubViewModel.cs" Link="App\GtnhHubViewModel.cs" />
+    <Compile Include="..\..\src\EML.App\ViewModels\GtnhToolsViewModel.cs" Link="App\GtnhToolsViewModel.cs" />
     <Compile Include="..\..\src\EML.App\ViewModels\GtnhPackDownloadViewModel.cs" Link="App\GtnhPackDownloadViewModel.cs" />
     <Compile Include="..\..\src\EML.App\ViewModels\MinecraftAccountViewModel.cs" Link="App\MinecraftAccountViewModel.cs" />
     <Compile Include="..\..\src\EML.App\ViewModels\InstancesViewModel.Checking.cs" Link="App\InstancesViewModel.Checking.cs" />

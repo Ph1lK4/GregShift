@@ -7,7 +7,7 @@ using EML.Core.Minecraft.Migration;
 namespace EML.App.Services;
 
 /// <summary>分步显示迁移方向、范围和文件预览，任何取消均发生在写入之前。</summary>
-public sealed class InstanceMigrationDialogs : IInstanceMigrationDialogs
+public sealed partial class InstanceMigrationDialogs : IInstanceMigrationDialogs
 {
     private readonly Window _owner;
     private readonly Func<DialogWindow, bool?> _show;
@@ -24,6 +24,45 @@ public sealed class InstanceMigrationDialogs : IInstanceMigrationDialogs
     {
         _owner = owner;
         _show = show;
+    }
+
+    /// <summary>固定旧实例，避免把新下载的空实例选为来源；没有新版时直接进入已有准备流程。</summary>
+    public MigrationTargetChoice? ChooseUpgradeTarget(GtnhInstanceInfo source, IReadOnlyList<GtnhInstanceInfo> targets)
+    {
+        var (window, body) = Create("升级 GTNH", "第 1 步 · 选择独立的新版实例", 760, 650);
+        body.Children.Add(DialogPrompt.DetailCard("保留原件 · 旧实例", $"{source.Name}（{source.Version}）\n{source.GameDirectory}"));
+        body.Children.Add(Text("旧实例不会被覆盖或删除。仅列出基础版本更高的 GTNH；请先补全新版依赖并成功试运行。"));
+        var target = new ComboBox { Margin = new(0, 14, 0, 10), ItemsSource = targets,
+            SelectedIndex = -1, DisplayMemberPath = nameof(GtnhInstanceInfo.Name) };
+        AutomationProperties.SetName(target, "升级接收新版实例");
+        body.Children.Add(target);
+        var destination = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, MinHeight = 64,
+            Text = targets.Count == 0 ? "尚无可用新版。可下载国内镜像的 Prism 客户端包，或导入已下载的新版本。" : "请选择新版，核对版本与完整路径。" };
+        AutomationProperties.SetName(destination, "新版版本与可复制路径");
+        body.Children.Add(destination);
+        var server = new CheckBox { Content = Text("我主要游玩服务器（迁移客户端地图、NEI 全局记录和语言，不是服务端升级）"), Margin = new(0, 16, 0, 8) };
+        body.Children.Add(server);
+        body.Children.Add(Text("没有准备好新版？下载或导入后先试运行，再回到这里。准备操作不会开始数据迁移。"));
+        var preparation = new WrapPanel { Margin = new(0, 12, 0, 8) };
+        UpgradeTargetAction action = UpgradeTargetAction.SelectInstance;
+        foreach (var (caption, kind) in new[] { ("下载新版 GTNH", UpgradeTargetAction.DownloadNewInstance), ("导入新版实例", UpgradeTargetAction.ImportNewInstance) })
+        {
+            var button = new Button { Content = caption, Margin = new(0, 0, 8, 8) };
+            AutomationProperties.SetName(button, caption);
+            button.Click += (_, _) => { action = kind; window.DialogResult = true; };
+            preparation.Children.Add(button);
+        }
+        body.Children.Add(preparation);
+        var next = window.AddAccept("选择升级内容"); next.IsEnabled = false;
+        target.SelectionChanged += (_, _) =>
+        {
+            next.IsEnabled = target.SelectedItem is GtnhInstanceInfo item && GtnhUpgradePolicy.IsNewerTarget(source, item);
+            destination.Text = target.SelectedItem is GtnhInstanceInfo selected ? $"GTNH {selected.Version}\n{selected.GameDirectory}" : "请选择新版。";
+        };
+        if (_show(window) != true) return null;
+        var mode = server.IsChecked == true ? GtnhMigrationMode.ServerClient : GtnhMigrationMode.FullClient;
+        return action != UpgradeTargetAction.SelectInstance ? new(null, mode, action) : target.SelectedItem is GtnhInstanceInfo selectedTarget
+            && GtnhUpgradePolicy.IsNewerTarget(source, selectedTarget) ? new(selectedTarget, mode) : null;
     }
 
     /// <summary>目标固定为列表选中的新版；来源仅显示已识别的其他 GTNH 实例。</summary>
@@ -54,7 +93,7 @@ public sealed class InstanceMigrationDialogs : IInstanceMigrationDialogs
     /// <summary>玩家数据与额外模组分开选择；模组默认不选，需单独确认来源及兼容风险。</summary>
     public MigrationSelection? ChooseGroups(GtnhInstanceInfo source, GtnhInstanceInfo target, IReadOnlyList<MigrationGroup> groups)
     {
-        var (window, body) = Create("选择迁移内容", "第 2 步 · 勾选需要带到新版的个人数据", 780, 700);
+        var (window, body) = Create("选择升级内容", "第 2 步 · 个人数据与额外模组分开确认", 800, 740);
         var direction = DialogPrompt.DetailCard("迁移方向", $"{source.Name}（{source.Version}） → {target.Name}（{target.Version}）");
         direction.Margin = new(0, 0, 0, 14);
         body.Children.Add(direction);
@@ -73,9 +112,34 @@ public sealed class InstanceMigrationDialogs : IInstanceMigrationDialogs
             warning.Margin = new(0, 8, 0, 8);
             mods.Children.Add(warning);
             var modList = new StackPanel();
-            foreach (var item in modBoxes) modList.Children.Add(item.Box);
+            var confirmed = modBoxes.Where(item => item.Group.ExtraModKind == GtnhExtraModCandidateKind.ConfirmedAddition).ToArray();
+            var uncertain = modBoxes.Where(item => item.Group.ExtraModKind != GtnhExtraModCandidateKind.ConfirmedAddition).ToArray();
+            foreach (var (heading, items) in new[] { ($"有额外安装／迁入记录 · {confirmed.Length} 个", confirmed),
+                ($"来源待确认 · {uncertain.Length} 个", uncertain) })
+            {
+                if (items.Length == 0) continue;
+                var label = Text(heading); label.FontWeight = FontWeights.SemiBold; label.Margin = new(0, 12, 0, 6);
+                modList.Children.Add(label);
+                foreach (var item in items)
+                {
+                    modList.Children.Add(item.Box);
+                    if (item.Group.AddonName is { Length: > 0 } addon)
+                    {
+                        var project = Text("专区项目：" + addon + "（项目识别不代表新版兼容）");
+                        project.Margin = new(24, 0, 0, 4); project.FontSize = 12;
+                        project.SetResourceReference(TextBlock.ForegroundProperty, "AccentTextBrush");
+                        modList.Children.Add(project);
+                    }
+                    if (item.Group.Description is { Length: > 0 } detail)
+                    {
+                        var description = Text(detail); description.FontSize = 12; description.Margin = new(24, 0, 0, 8);
+                        description.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
+                        modList.Children.Add(description);
+                    }
+                }
+            }
             mods.Children.Add(new ScrollViewer { Content = modList, MaxHeight = 230, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
-            body.Children.Add(new Expander { Header = Text($"可选：迁移自己添加的模组（{modBoxes.Length} 个候选，默认不选）"),
+            body.Children.Add(new Expander { Header = Text($"可选：携带额外模组（有记录 {confirmed.Length} 个，待确认 {uncertain.Length} 个；默认不选）"),
                 Content = mods, IsExpanded = false, Margin = new(0, 8, 0, 12) });
         }
         var modRisk = new CheckBox { Content = Text("我确认勾选的是自己添加的模组，并已了解它们可能与新版不兼容、导致崩溃或存档异常"),
@@ -105,7 +169,7 @@ public sealed class InstanceMigrationDialogs : IInstanceMigrationDialogs
     /// <summary>完整列出文件动作和大小；覆盖开关仅影响显式列出的冲突，世界始终另存。</summary>
     public bool? ConfirmMigration(InstanceMigrationPlan plan)
     {
-        var (window, body) = Create("确认迁移预览", "第 3 步 · 核对文件操作，确认后才开始复制", 940, 720);
+        var (window, body) = Create("确认升级数据预览", "第 3 步 · 核对文件操作，确认后才开始复制", 940, 720);
         var conflicts = plan.Files.Count(file => file.Action == MigrationFileAction.Conflict);
         var bytes = plan.Files.Where(file => file.Action is not (MigrationFileAction.Identical or MigrationFileAction.Skip)).Sum(file => file.Size);
         var summary = DialogPrompt.DetailCard("本次迁移", $"{plan.Source.Name} → {plan.Target.Name}\n{plan.Files.Count} 个文件，{conflicts} 个冲突，最多复制 {bytes / 1048576d:F1} MiB。\n覆盖前会备份新版原文件。");
@@ -127,7 +191,7 @@ public sealed class InstanceMigrationDialogs : IInstanceMigrationDialogs
         var replace = new CheckBox { Content = Text("覆盖上面列出的冲突文件（使用旧版个人数据替换新版文件）"),
             IsEnabled = conflicts > 0, IsChecked = false, Margin = new(0, 12, 0, 0) };
         body.Children.Add(replace);
-        window.AddAccept("开始迁移");
+        window.AddAccept("确认并迁移到新版");
         return _show(window) == true ? replace.IsChecked == true : null;
     }
 
