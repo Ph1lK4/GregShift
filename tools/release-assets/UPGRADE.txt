@@ -1,73 +1,82 @@
-EML 1.0-RC2 · 升级与数据保留
+GregShift 1.0-RC3 · 启动器升级与数据保留
 
-推荐保持原安装路径，备份后只合并新版程序文件。
-这不是自动更新，不会自动删除旧程序文件，也没有自动回滚。
+本说明是更新启动器，不是升级 GTNH 整合包。
+从 RC1、RC1-Logo1 或 RC2 升级时，推荐保持原安装路径，
+备份后只合并新版程序文件。没有自动更新或事务式自动回滚。
+GregShift 是原 EML 的新显示名，旧数据路径保持兼容。
 
-从 RC1 / RC1-Logo1 升级
+升级步骤
 
-1. 正常退出 Minecraft，结束下载、导入和迁移，再退出所有 EML。
-2. 复制备份整个旧 EML 文件夹，包含隐藏目录，确认副本可读取。
-3. 将 RC2 ZIP 完整解压到另一个临时目录，核对同版本 SHA-256。
-4. 将新版解压目录内的文件和文件夹复制到旧 EML 根目录，合并目录，
-   只覆盖发布包内同名的程序文件。原来的玩家数据必须保留。
-5. 运行根目录新的 EML.exe，确认显示 1.0-RC2。
-   将旧快捷方式改为指向 EML.exe。
-6. 核对实例、上次账号和模式、Java 路径、内存、JVM 参数及下载设置。
-   第一次游戏测试请使用存档副本。
+1. 正常退出 Minecraft，结束下载、导入、补全及迁移任务，
+   退出所有 EML/GregShift 副本。不要同时操作同一份实例。
+2. 将整个旧启动器文件夹复制到外部备份位置，包含隐藏目录，
+   确认副本可读取。不要把唯一备份放在将被覆盖的目录里。
+   Planner 重要方案还应逐个导出 JSON，方便独立恢复。
+3. 将 EML-1.0-RC3-win-x64.zip 完整解压到另一个临时目录，
+   将 ZIP 的 SHA-256 与同版本 .zip.sha256 核对。
+4. 将新版解压目录中的程序文件和文件夹复制到旧根目录，
+   合并目录，只覆盖发布包内同名程序文件，保留全部玩家数据。
+5. 运行根目录 EML.exe，确认显示 GregShift 1.0-RC3。
+   更新旧快捷方式，使其指向这个入口，而不是旧 EML.App.exe。
+6. 核对实例、上次账号和模式、Java 路径、内存、JVM 参数、
+   下载和外观设置。首次游戏测试使用存档副本。
 
-入口与目录的变化
+程序入口与目录
 
-RC2：EML.exe 是启动入口，app/ 存放程序、.NET 和语言资源。
+根目录 EML.exe 是入口；app/ 存放主程序、.NET 和语言资源。
+这不是单文件 EXE，不可只复制入口或混用其他版本的 app/。
 玩家数据仍在 EML.exe 旁边，不迁入 app/。
 
-旧 EML.App.exe、DLL 和语言目录可能仍留在根目录。这是保留旧文件
-的结果，不代表 RC2 要使用它们。不要继续运行旧 EML.App.exe。
-此流程不自动清理旧文件，因此升级后的目录可能比全新解压更杂。
-如需后续清理，必须按旧发布清单逐项核对；不要按扩展名批量删除。
+旧 EML.App.exe、DLL 和语言目录可能仍留在根目录。升级不会自动
+删除它们，不代表 RC3 使用它们。不要继续启动旧 EML.App.exe。
+如需清理，应按旧发布清单逐项核对，不能按扩展名批量删除。
 
-这些数据必须原样保留
+这些数据必须保留
 
-- instances：全部实例、世界存档、地图、截图、游戏设置。
-- 实例内 .eml-runtime：启动设置、来源和用户修改记录、模组回收区、
-  迁移记录和备份；不是可以随意清理的普通缓存。
-- settings：下载并发、限速等设置。
-- runtimes：EML 下载的 Java。
-- cache：缓存、断点文件及整合包原包；原包还可能用于文件恢复。
-- 根目录 .eml-runtime 和 .eml-imports：保留，不在升级中粗暴清空。
+- instances/：实例、世界、地图、截图和游戏设置。
+- 实例内 .eml-runtime/：启动与来源记录、用户变更、模组回收区、
+  迁移事务和备份，不是可以随意删除的普通缓存。
+- settings/：启动器设置，包括下载与外观等。
+- runtimes/：已下载的 Java，保留原路径有助于沿用启动配置。
+- cache/：下载缓存、断点文件和整合包原包，部分原包用于恢复。
+- cache/gtnh-tools/planner-webview2/：含玩家创建的 Planner 方案，
+  不能当普通缓存清理；升级、搬家或清理前先逐个导出 JSON。
+- 根目录 .eml-runtime/、.eml-imports/：保留，不粗暴清空。
 
-不要先删除旧文件夹，不要“清空后解压”，不要使用镜像同步或
-robocopy /MIR。不要让两个 EML 版本同时操作同一份实例。
-“导出实例 ZIP”不能代替完整升级备份，部分本机设置和恢复记录
-不在实例导出范围内。
+不要先删除旧文件夹，不要“清空后解压”，不要镜像同步或使用
+robocopy /MIR。不要让两个版本同时操作同一实例。
+实例 ZIP 不包含实例外共享依赖、账号及完整迁移备份，
+不能代替整个启动器数据目录的备份。
 
 账号在哪里？
 
-微软账号集合仍在当前 Windows 用户的：
+微软账号集合仍保存在当前 Windows 用户的：
 %LOCALAPPDATA%\EML\accounts\microsoft.dpapi
 
-它不在发布包或 app/ 里。同一 Windows 用户升级继续使用；其他
-EML 副本也会使用这个位置。换电脑或用户应重新登录，不要分享、
-搬运或为升级清空凭证文件。
+凭据不在发布包或 app/ 内。同一 Windows 用户的多个副本共用该
+位置；换电脑或 Windows 用户应重新登录。不要分享、搬运凭据，
+不要为了升级而清空凭据目录。备份实例 ZIP 不会备份登录凭据。
 
-如果要换目录或换电脑
+换目录、换电脑与回退
 
-这不等同于同路径升级。Java 绝对路径、原整合包位置可能失效，
-需要重新选择；账号应按需重新登录。保留缓存不代表全部下载任务
-会自动恢复。请在旧目录保留期间核对新位置的实例和数据。
+换位置不等于同路径升级。已保存的 Java 绝对路径、原整合包位置
+可能失效，需要重新选择；账号按需重新登录。保留缓存不代表
+所有安装任务会自动恢复。确认新位置数据前不要删除旧目录。
 
-如果需要回退
+需要回退时，先退出新版并保留错误信息，使用升级前完整备份，
+避免混用新旧程序。若已继续游玩、创建方案或更改设置，先另外
+保存新增数据；不要用旧备份直接覆盖最新世界、方案和设置。
 
-先退出新版并保留错误信息，使用升级前的完整备份，避免混用
-不同版本的 EXE 和 DLL。若已经继续游玩或更改设置，先另外备份
-新增数据；不要用旧备份直接覆盖最新存档或设置。
+版本、校验与验收
 
-原 RC1 的标签、原包与校验值保持不变。RC1-Logo1 和 RC2 各自有
-独立版本、源码提交与 SHA-256，不能互换校验文件。
-详细说明见 docs/release-rc2.md。
+原 RC1、RC1-Logo1 和 RC2 的标签、附件与哈希保持不变。
+RC3 使用自己的版本、源码提交及 SHA-256，不能互用校验文件。
+RC3 未代码签名，校验值和 CI 通过不等于签名或安全认证。
+详细变化、风险与验收步骤见 docs/release-rc3.md。
 
-English: Close Minecraft and EML and back up the complete old folder.
-Merge RC2 into the same path without deleting player data. Run the new
-EML.exe and update shortcuts; old EML.App.exe and flat runtime files may
-remain but are not automatically removed. Keep app/ intact. Do not use
-mirror sync or mix binaries from different versions. Back up any new
-player data before reverting to the pre-upgrade backup.
+English: Close games, all tasks and every launcher copy. Back up the
+complete old folder, including hidden data, to a separate location.
+Export important Planner plans as JSON. Verify the RC3 ZIP, then merge
+its program files into the same path while keeping player data.
+Run the root EML.exe and update shortcuts. Do not use mirror sync,
+delete old data, mix binaries or overwrite new progress when reverting.

@@ -1,6 +1,6 @@
 #Requires -Version 7.0
 [CmdletBinding()]
-param([Parameter(Mandatory)][string] $Path, [string] $DisplayVersion = '1.0-RC2')
+param([Parameter(Mandatory)][string] $Path, [string] $DisplayVersion = '1.0-RC3')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 

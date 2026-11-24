@@ -1,14 +1,14 @@
 # Code signing policy / 代码签名政策
 
-更新日期：2026-11-18。
+更新日期：2026-11-24。
 
 ## 当前状态 / Current status
 
-EML 目前的 `1.0-RC2` 包及此前 RC1 包均**未进行代码签名**。本次 SignPath Foundation 申请未获批准，尚未接入签名服务。本文不是已获证书、受信任或已经完成安全审核的证明。
+GregShift 的 `1.0-RC3` 候选测试版及此前 RC2、RC1 包均**未进行代码签名**。本次 SignPath Foundation 申请未获批准，尚未接入签名服务。本文不是已获证书、受信任或已经完成安全审核的证明。
 
 根据维护者确认，GitHub 已启用多因素认证；本文不代表独立核验过其账号设置，也不声明 SignPath 账号的 MFA 状态。仓库已有不使用发布密钥的 GitHub Actions 构建与测试流程，但尚无签名服务集成或签名审批链。普通 CI 检查通过不等于发行文件已签名。
 
-The current `1.0-RC2` package and earlier RC1 packages are **unsigned**. The SignPath Foundation application was not approved, and no signing service is active. The maintainer reports that GitHub MFA is enabled; this document does not independently verify account settings or assert a SignPath MFA status. GitHub Actions runs credential-free build and test checks, but there is no signing or signing-approval workflow. Passing CI does not make a binary signed.
+The GregShift `1.0-RC3` release candidate and earlier RC2 and RC1 packages are **unsigned**. The SignPath Foundation application was not approved, and no signing service is active. The maintainer reports that GitHub MFA is enabled; this document does not independently verify account settings or assert a SignPath MFA status. GitHub Actions runs credential-free build and test checks, but there is no signing or signing-approval workflow. Passing CI does not make a binary signed.
 
 ## 项目责任人 / Team roles
 

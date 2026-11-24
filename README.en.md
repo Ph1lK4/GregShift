@@ -4,13 +4,13 @@
 
 **A Windows launcher for GT New Horizons (GTNH) players in China.**
 
-[简体中文](README.md) | English · [Test releases](https://github.com/Ph1lK4/EML/releases) · [Documentation](#documentation) · [Report an issue](https://github.com/Ph1lK4/EML/issues)
+[简体中文](README.md) | English · [Test releases](https://github.com/Ph1lK4/GregShift/releases) · [Documentation](#documentation) · [Report an issue](https://github.com/Ph1lK4/GregShift/issues)
 
 A GTNH world can outlast several pack versions. When an update arrives, your saves, maps and settings are still in the old instance. GregShift handles pack installation, Java setup and launching, then helps carry your local data into a separate, newer instance without another round of moving files by hand.
 
 Formerly EML, the project is maintained by K4ssia. It also supports other common modpacks and vanilla Minecraft Java Edition. **It is not an official GTNH, Mojang or Microsoft launcher.**
 
-> The current public test release is **1.0-RC2 and is unsigned**. It is not a stable release. This README covers the current source, including changes that are not in the published RC2 package. Check the notes for the package you download, and back up your saves before testing or upgrading.
+> The current version is **1.0-RC3, an unsigned release candidate**, not a stable release. Read the [RC3 release notes](docs/release-rc3.md) and back up your saves before testing or upgrading. The old RC2 download and checksums are retained; it does not include all the features described here.
 
 ## Interface preview
 
@@ -105,12 +105,12 @@ See [GTNH tools](docs/gtnh-tools.md), [native tools and data sources](docs/gtnh-
 
 Release packages target **Windows x64** and include the launcher's .NET runtime. Visual Studio and the .NET SDK are not required. Java and game files are separate.
 
-1. Download a test package from [GitHub Releases](https://github.com/Ph1lK4/EML/releases). Extract it in full to a writable directory and run **`EML.exe`** from the root. Do not run it inside an archive viewer, copy only the EXE, or remove `app/`.
+1. Download a test package from [GitHub Releases](https://github.com/Ph1lK4/GregShift/releases). Extract it in full to a writable directory and run **`EML.exe`** from the root. Do not run it inside an archive viewer, copy only the EXE, or remove `app/`.
 2. Download GTNH in its hub, or download/import another instance. Wait for preparation to finish and resolve any files marked for manual handling.
 3. Detect or download Java. For online mode, sign in first. Check the instance's identity, Java and memory in launch settings, save the parameters, then launch.
 4. Use a copy of your save for first runs, updates and migrations. If something fails, check the result message and the log for that run.
 
-Renaming EML to GregShift does not move existing data; some executable names and paths still use EML. Before updating the launcher, stop games and tasks and follow the [RC2 upgrade guide](docs/release-rc2.md). **Do not empty the old directory before extracting an update.** Instance ZIP exports exclude shared runtime dependencies outside the instance, account credentials and full migration backups; they are not a replacement for backing up the whole data directory.
+Renaming EML to GregShift does not move existing data; some executable names and paths still use EML. Before updating the launcher, stop games and tasks and follow the [RC3 upgrade guide](docs/release-rc3.md). **Do not empty the old directory before extracting an update.** Instance ZIP exports exclude shared runtime dependencies outside the instance, account credentials and full migration backups; they are not a replacement for backing up the whole data directory.
 
 ## Before you use it
 
@@ -128,11 +128,11 @@ Guides are currently in Chinese:
 - GTNH: [Hub and add-ons](docs/gtnh-hub.md) · [Upgrading and migration](docs/gtnh-player-data-migration.md) · [Tools](docs/gtnh-tools.md) · [Native tools](docs/gtnh-native-tools.md)
 - Installation: [Pack downloads](docs/instance-downloads.md) · [Folder import](docs/folder-import.md) · [Java downloads](docs/java-downloads.md) · [Download center](docs/download-center.md)
 - Playing: [Microsoft accounts](docs/microsoft-login.md) · [Launch settings and logs](docs/launching.md) · [Online mods](docs/online-mod-management.md) · [Local mods](docs/local-mod-management.md)
-- Maintenance: [Appearance](docs/appearance.md) · [File changes and integrity](docs/gameplay-file-policy.md) · [Backup boundaries](docs/instance-backups.md) · [Launcher upgrades](docs/release-rc2.md) · [Uninstalling and keeping data](docs/uninstall.md)
+- Maintenance: [Appearance](docs/appearance.md) · [File changes and integrity](docs/gameplay-file-policy.md) · [Backup boundaries](docs/instance-backups.md) · [Launcher upgrades](docs/release-rc3.md) · [Uninstalling and keeping data](docs/uninstall.md)
 
 ## Feedback, privacy and security
 
-Maintainer: **K4ssia**. Report ordinary bugs through [GitHub Issues](https://github.com/Ph1lK4/EML/issues). For contact, privacy questions or private vulnerability reports, email **[477619464@qq.com](mailto:477619464@qq.com)**.
+Maintainer: **K4ssia**. Report ordinary bugs through [GitHub Issues](https://github.com/Ph1lK4/GregShift/issues). For contact, privacy questions or private vulnerability reports, email **[477619464@qq.com](mailto:477619464@qq.com)**.
 
 Include the launcher, pack and Java versions, steps to reproduce, and relevant error details. Redact logs before sharing. Do not publish tokens, account files, private server details or full instances. Please report security vulnerabilities privately.
 

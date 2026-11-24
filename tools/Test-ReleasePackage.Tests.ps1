@@ -2,8 +2,8 @@
 [CmdletBinding()]
 param(
     [string] $PackagePath,
-    [string] $Version = '1.0.0-rc.2',
-    [string] $DisplayVersion = '1.0-RC2',
+    [string] $Version = '1.0.0-rc.3',
+    [string] $DisplayVersion = '1.0-RC3',
     [string] $RuntimeVersion = '10.0.13',
     [ValidateSet('Flat', 'AppDirectory')][string] $Layout = 'AppDirectory'
 )
@@ -59,7 +59,7 @@ foreach ($name in @('EML.exe', 'START-HERE.txt', 'UPGRADE.txt', 'release-manifes
     'docs/gtnh-planner-notices.md', 'docs/LICENSE-GTNH-PLANNER-ZH.txt',
     'app/ko/System.Windows.Forms.resources.dll', 'docs/LICENSE', 'docs/SOURCE.txt', 'docs/PRIVACY.md',
     'docs/SECURITY.md', 'docs/LICENSE-DOTNET.txt', 'docs/LICENSE-MVVM.txt', 'docs/THIRD-PARTY-NOTICES.txt',
-    'docs/uninstall.md', 'docs/code-signing.md', 'docs/release-rc1.md', 'docs/release-rc2.md')) {
+    'docs/uninstall.md', 'docs/code-signing.md', 'docs/release-rc1.md', 'docs/release-rc2.md', 'docs/release-rc3.md')) {
     Assert-Accepted "structured $name" { Test-EmlReleasePath -RelativePath $name -Layout AppDirectory }
 }
 foreach ($name in @('app', 'docs', 'app/zh-Hans', 'app/ko', 'app/cs')) {
@@ -69,6 +69,7 @@ foreach ($name in @('EML.App.exe', 'EML.App.dll', 'System.dll', 'microsoft-login
     'LICENSE', 'SOURCE.txt', 'app/EML.exe', 'app/EML.App.exe', 'app/app/EML.App.dll',
     'app/app/System.resources.dll', 'app/docs/LICENSE', 'app/release-manifest.json', 'app/START-HERE.txt',
     'app/LICENSE', 'app/PRIVACY.md', 'app/gtnh-planner-notices.md', 'app/LICENSE-GTNH-PLANNER-ZH.txt',
+    'release-rc3.md', 'app/release-rc3.md', 'docs/nested/release-rc3.md',
     'gtnh-native-tools.md', 'app/gtnh-native-tools.md', 'docs/nested/gtnh-native-tools.md',
     'docs/nested/gtnh-planner-notices.md', 'docs/nested/LICENSE-GTNH-PLANNER-ZH.txt',
     'app/private.json', 'app/settings/downloads.json', 'app/accounts/microsoft.dpapi',
@@ -135,7 +136,7 @@ if (-not [string]::IsNullOrWhiteSpace($PackagePath)) {
     finally { Move-Item -LiteralPath $heldNative -Destination $native }
     $requiredFixtureFiles = @("${documentPrefix}LICENSE", "${documentPrefix}SOURCE.txt", "${documentPrefix}PRIVACY.md", "${documentPrefix}SECURITY.md", 'docs/uninstall.md', $entryPoint, "${programPrefix}EML.App.dll")
     if ($Layout -eq 'AppDirectory') {
-        $requiredFixtureFiles += @('docs/LICENSE-WEBVIEW2.txt', 'docs/gtnh-tools.md', 'docs/gtnh-native-tools.md',
+        $requiredFixtureFiles += @('docs/release-rc3.md', 'docs/LICENSE-WEBVIEW2.txt', 'docs/gtnh-tools.md', 'docs/gtnh-native-tools.md',
             'docs/gtnh-planner-notices.md', 'docs/LICENSE-GTNH-PLANNER-ZH.txt',
             'app/Microsoft.Web.WebView2.Core.dll', 'app/Microsoft.Web.WebView2.Wpf.dll',
             'app/WebView2Loader.dll')
@@ -176,6 +177,11 @@ if (-not [string]::IsNullOrWhiteSpace($PackagePath)) {
         $manifest.sourceCommit = '0' * 40
         [IO.File]::WriteAllText($manifestFile, ($manifest | ConvertTo-Json -Depth 10))
         Assert-Rejected 'source notice mismatch' { Test-Package $fixture }
+        $manifest = $manifestText | ConvertFrom-Json -AsHashtable
+        $manifest.sourceRepository = 'https://github.com/other-owner/GregShift'
+        [IO.File]::WriteAllText($manifestFile, ($manifest | ConvertTo-Json -Depth 10))
+        Assert-Rejected 'unrecognized source repository' { Test-Package $fixture } `
+            -ExpectedMessage 'Release manifest requires the exact public source revision.'
         if ($Layout -eq 'AppDirectory') {
             foreach ($field in @('layout', 'entryPoint', 'applicationDirectory', 'dataDirectory')) {
                 $manifest = $manifestText | ConvertFrom-Json -AsHashtable
@@ -202,6 +208,13 @@ if (-not [string]::IsNullOrWhiteSpace($PackagePath)) {
         Move-Item -LiteralPath $manifestFile -Destination $heldManifest
         try {
             Assert-Accepted 'structured fixture before manifest' { Test-Package $fixture | Out-Null }
+            $releaseNotesPath = Join-Path $fixture 'docs/release-rc3.md'
+            $heldReleaseNotes = Join-Path $temporary 'held-rc3-notes-without-manifest.md'
+            Move-Item -LiteralPath $releaseNotesPath -Destination $heldReleaseNotes
+            try {
+                Assert-Rejected 'missing RC3 notes without manifest' { Test-Package $fixture } `
+                    -ExpectedMessage 'Required self-contained release file is missing: docs/release-rc3.md'
+            } finally { Move-Item -LiteralPath $heldReleaseNotes -Destination $releaseNotesPath }
             # 缺少说明必须由必需文件规则拒绝，不能被清单摘要失败掩盖。
             $nativeToolsPath = Join-Path $fixture 'docs/gtnh-native-tools.md'
             $heldNativeTools = Join-Path $temporary 'held-native-tools-without-manifest.md'

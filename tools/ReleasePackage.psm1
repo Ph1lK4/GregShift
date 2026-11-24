@@ -28,7 +28,7 @@ function Test-EmlReleasePath {
     $culturePattern = '^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$'
     $documents = @('LICENSE', 'SOURCE.txt', 'PRIVACY.md', 'SECURITY.md',
         'LICENSE-DOTNET.txt', 'LICENSE-MVVM.txt', 'LICENSE-WEBVIEW2.txt', 'LICENSE-GTNH-PLANNER-ZH.txt', 'THIRD-PARTY-NOTICES.txt',
-        'uninstall.md', 'code-signing.md', 'release-rc1.md', 'release-rc2.md', 'gtnh-tools.md', 'gtnh-native-tools.md', 'gtnh-planner-notices.md')
+        'uninstall.md', 'code-signing.md', 'release-rc1.md', 'release-rc2.md', 'release-rc3.md', 'gtnh-tools.md', 'gtnh-native-tools.md', 'gtnh-planner-notices.md')
     if ($Directory) {
         if ($path -ceq 'docs') { return }
         if ($Layout -eq 'AppDirectory') {
@@ -179,8 +179,8 @@ function Test-EmlReleaseLayout {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string] $Path,
-        [string] $Version = '1.0.0-rc.2',
-        [string] $DisplayVersion = '1.0-RC2',
+        [string] $Version = '1.0.0-rc.3',
+        [string] $DisplayVersion = '1.0-RC3',
         [string] $RuntimeVersion = '10.0.13',
         [ValidateSet('Flat', 'AppDirectory')][string] $Layout = 'AppDirectory'
     )
@@ -199,7 +199,7 @@ function Test-EmlReleaseLayout {
     $required += @('LICENSE-DOTNET.txt', 'LICENSE-MVVM.txt', 'THIRD-PARTY-NOTICES.txt',
         'LICENSE', 'SOURCE.txt', 'PRIVACY.md', 'SECURITY.md') | ForEach-Object { $documentPrefix + $_ }
     if ($Layout -eq 'AppDirectory') {
-        $required += @('app/eml-layout.json', 'docs/release-rc2.md', 'docs/gtnh-tools.md', 'docs/gtnh-native-tools.md',
+        $required += @('app/eml-layout.json', 'docs/release-rc2.md', 'docs/release-rc3.md', 'docs/gtnh-tools.md', 'docs/gtnh-native-tools.md',
             'docs/gtnh-planner-notices.md', 'docs/LICENSE-GTNH-PLANNER-ZH.txt',
             'docs/LICENSE-WEBVIEW2.txt', 'app/Microsoft.Web.WebView2.Core.dll',
             'app/Microsoft.Web.WebView2.Wpf.dll', 'app/WebView2Loader.dll')
@@ -253,7 +253,8 @@ function Test-EmlReleaseLayout {
             $manifest.selfContained -ne $true -or $manifest.runtimeVersion -ne $RuntimeVersion) {
             throw 'Release manifest identity is inconsistent.'
         }
-        if ($manifest.sourceCommit -cnotmatch '^[0-9a-f]{40}$' -or $manifest.sourceRepository -cne 'https://github.com/Ph1lK4/EML') {
+        if ($manifest.sourceCommit -cnotmatch '^[0-9a-f]{40}$' -or
+            $manifest.sourceRepository -cnotin @('https://github.com/Ph1lK4/GregShift', 'https://github.com/Ph1lK4/EML')) {
             throw 'Release manifest requires the exact public source revision.'
         }
         if ($Layout -eq 'AppDirectory') {

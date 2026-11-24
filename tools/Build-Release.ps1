@@ -25,7 +25,7 @@ $sourceCommit = & git -C $projectRoot rev-parse HEAD
 if ($LASTEXITCODE -ne 0 -or $sourceCommit -cnotmatch '^[0-9a-f]{40}$') { throw 'A Git checkout with a committed source revision is required.' }
 $sourceChanges = & git -C $projectRoot status --porcelain --untracked-files=normal
 if ($LASTEXITCODE -ne 0 -or $sourceChanges) { throw 'Commit the reviewed source before creating a release package.' }
-$sourceRepository = 'https://github.com/Ph1lK4/EML'
+$sourceRepository = 'https://github.com/Ph1lK4/GregShift'
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $projectRoot 'artifacts/releases' }
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 $packageName = "EML-$displayVersion-win-x64"
@@ -83,7 +83,7 @@ try {
     foreach ($name in @('LICENSE', 'PRIVACY.md', 'SECURITY.md')) {
         Copy-Item -LiteralPath (Join-Path $projectRoot $name) -Destination (Join-Path $documentation $name)
     }
-    foreach ($name in @('uninstall.md', 'code-signing.md', 'release-rc1.md', 'release-rc2.md', 'gtnh-tools.md', 'gtnh-native-tools.md', 'gtnh-planner-notices.md')) {
+    foreach ($name in @('uninstall.md', 'code-signing.md', 'release-rc1.md', 'release-rc2.md', 'release-rc3.md', 'gtnh-tools.md', 'gtnh-native-tools.md', 'gtnh-planner-notices.md')) {
         Copy-Item -LiteralPath (Join-Path $projectRoot "docs/$name") -Destination (Join-Path $payload "docs/$name")
     }
     Copy-Item -LiteralPath (Join-Path $projectRoot 'src/EML.App/Resources/GtnhPlanner/LICENSE.txt') -Destination (Join-Path $documentation 'LICENSE-GTNH-PLANNER-ZH.txt')

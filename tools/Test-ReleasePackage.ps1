@@ -2,8 +2,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string] $Path,
-    [string] $Version = '1.0.0-rc.2',
-    [string] $DisplayVersion = '1.0-RC2',
+    [string] $Version = '1.0.0-rc.3',
+    [string] $DisplayVersion = '1.0-RC3',
     [string] $RuntimeVersion = '10.0.13',
     [ValidateSet('Flat', 'AppDirectory')][string] $Layout = 'AppDirectory'
 )

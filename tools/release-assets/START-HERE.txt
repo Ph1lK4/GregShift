@@ -1,68 +1,89 @@
-EML 1.0-RC2 · Windows x64 候选测试版
+GregShift 1.0-RC3 · Windows x64 候选测试版
 
 第一次使用
 
-1. 完整解压这个 ZIP，把整个文件夹放在你有写入权限的位置。
-   不要放到 Program Files、Windows 系统目录或只读位置。
-2. 运行根目录的 EML.exe。
-   app 文件夹是程序的一部分，不能删除；不要只复制 EXE，
-   也不要在压缩软件内直接运行。
-3. 在“下载实例”或“GTNH 专区”下载整合包，也可以导入已有包，
-   或从其他启动器复制受支持的实例。
-4. 在“Java 环境”准备合适的 Java；启动时也会按需要询问下载。
-5. 核对实例、玩家身份和启动模式，再开始游戏。
-
-为什么根目录变整齐了？
-
-RC2 将主程序 DLL、.NET 运行库、cs/ko 等语言资源和公开登录配置
-放进 app 文件夹。它不是单文件 EXE；请保留完整的 app 文件夹。
-EML 接续 Logo 用于程序图标、窗口及界面侧栏。
-
-实例、设置、已下载的 Java、缓存仍保存在 EML.exe 旁边的
-instances、settings、runtimes、cache 等目录，不放进 app。
-这些玩家数据不随下载包附带，会在你实际使用后产生。
+1. 完整解压 ZIP，将整个文件夹放在当前用户有写入权限的位置。
+   不要放在 Program Files、Windows 系统目录或只读位置。
+2. 运行根目录 EML.exe。产品已更名为 GregShift，入口仍保留旧名。
+   app/ 是程序的一部分；不要只复制 EXE，不要在压缩软件内运行。
+3. 在“GTNH 专区”下载整合包，或下载、导入其他受支持实例。
+   等待依赖补全结束，再处理提示中仍缺少的文件。
+4. 在“Java 环境”准备合适的 Java；启动缺少兼容版本时会先询问。
+5. 核对实例、玩家身份、启动模式、Java 和内存，再开始游戏。
 
 需要额外安装什么？
 
-- 不需要 Visual Studio、.NET SDK 或另装 .NET，所需运行时已附带。
-- Java、Minecraft 和整合包不在启动器包里，游戏前仍需下载。
-- 正版模式需要自己的有效 Minecraft 账号，离线名字不等于正版登录。
+- 包内自带 .NET，不需要 Visual Studio、.NET SDK 或另装 .NET。
+- Java、Minecraft 和整合包不在启动器包内，需另行下载。
+- 正版模式需要自己的有效 Minecraft 账号；离线名不能代替认证。
 - 不要求管理员权限。首次下载需要网络和足够磁盘空间。
-- 左侧“GTNH 专区”下方的“GTNH 工具”提供流程图和在线任务书。
-  流程图点击进入详情，由本机画布绘制；成功缓存后可离线查看。
-  未创建的条目保留名称并提示等待更新；不包含原站图标和详细配方弹窗。
-  直接读取被拒绝时，可在此页查看原站，页面正常显示后主动
-  “读取为本地图表”；数据仍会校验，不绕过站点访问限制。
-- 在线任务书、目录联网更新和显式查看原站另需网络及
-  Microsoft Edge WebView2 Evergreen Runtime。任务书不读取游戏进度。
-  缺少运行时会在工具页提示；不会自动安装，不影响本地图表及其他功能。
-  请从 Microsoft 官方页面获取：https://developer.microsoft.com/microsoft-edge/webview2/
-  图表缓存位于 cache/gtnh-tools/flowcharts，网页数据位于
-  cache/gtnh-tools/webview2。数据保留原作者许可，不改用启动器 GPL；
-  来源、修订（如有）、读取时间和许可说明可在图表详情查看。
+- 网页工具另需 Microsoft Edge WebView2 Evergreen Runtime，
+  它与随包 .NET 不同。缺少时工具页会提示，不自动安装。
+  原生工具、已缓存的本地图表及一般实例功能不因此被禁用。
+  官方下载：https://developer.microsoft.com/microsoft-edge/webview2/
 
-已有 RC1 或 RC1-Logo1？
+GTNH 版本升级
 
-先阅读同目录 UPGRADE.txt。退出游戏和 EML，完整备份旧目录，
-保持原安装路径，合并新版程序文件并保留全部玩家数据。
-升级后请运行 EML.exe，而不是可能仍留着的旧 EML.App.exe，
-并更新旧快捷方式。升级不会自动删除旧的平铺程序文件。
+进入“GTNH 专区 → 版本升级”，选择有游玩记录的旧客户端实例。
+“升级 GTNH · 选择新版”会打开独立弹窗选择更高版本和 Java 变体，
+然后下载、导入并补全独立新实例，不覆盖旧版；已有新版也可选择。
+先试运行新版并正常退出，再选择要迁移的数据，核对预览后确认。
+尚未导入旧版时，先用“导入旧实例（含本地数据）”。
+
+可迁移存档、NEI、地图、矿脉/节点记录、服务器列表及部分设置。
+额外模组默认不选；迁移前需逐个确认兼容风险。只复制旧文件，
+不自动升级或补前置；新版已有的重复模组保留新版。
+只迁移语言偏好，不复制旧完整汉化、整包配置或脚本。
+不含服务端升级或 SFTP。迁移成功不代表存档或模组兼容，
+跨大版本请按 GTNH 更新说明逐步操作，并保留旧实例与独立备份。
+
+GTNH 工具
+
+左侧“GTNH 专区”下方有七项工具：工艺流程图、在线任务书、
+产线规划器、矿物处理正则、研究助手、种子地图和在线魔导手册。
+无需绑定实例；原生正则和研究助手可离线使用。
+研究助手查找要素连接链，不求解整张研究笔记。
+
+流程图使用本机画布，支持图标、动态图集和悬停配方卡片；
+有效缓存可离线查看。未创建条目保留名称并提示等待更新。
+原站拒绝直接读取时，通过内嵌浏览器正常加载并尝试回读；
+仍需人工验证时会保留提示，不绕过访问限制。
+资料和配方可能不对应实际游玩版本，以游戏内为准。
+
+Planner 中文搜索请用启动器顶部搜索框，下方网页框仍以英文为主。
+它是在线工具，不是完整离线部署。重要方案请主动导出 JSON！
+cache/gtnh-tools/planner-webview2/ 含个人方案，
+不能当普通缓存随意清理；升级、换电脑或清理前先逐个导出。
+网页、图表和词典保留原作者许可，不随启动器源码改用 GPL。
+
+已有 RC1 / RC2？
+
+先阅读 UPGRADE.txt。结束游戏和所有任务，退出全部启动器副本，
+将整个旧目录（含隐藏文件）备份到外部位置，再合并新版程序。
+不要清空旧目录，不要镜像同步，不要只保留实例 ZIP。
+实例、设置、Java 和缓存仍在根 EML.exe 旁，不搬入 app/。
+旧程序文件不会自动删除；更新快捷方式到根目录 EML.exe。
+启动后确认版本为 1.0-RC3，不要混用新旧 EXE 和 DLL。
 
 来源与安全
 
-本包仍未签名。SHA-256 用于核对内容，不能代替发布者数字签名。
-Windows 或安全软件阻止运行时，请核对来源、保留错误提示并反馈，
-不要关闭系统防护。对应源码见 docs/SOURCE.txt；许可证、隐私、
-安全报告和详细发布说明位于 docs 文件夹。
+本包未进行代码签名。CI 通过和 SHA-256 都不是数字签名或安全认证。
+被 Windows 或安全软件拦截时，请核对来源、保留提示并反馈，
+不要关闭系统防护。GTNH 镜像当前没有官方哈希校验；本地摘要
+不等于官方完整性证明。推荐模组也不代表已通过兼容性验证。
 
-干净电脑、真实双账号及完整整合包/服务器流程仍需要实际验收。
-先使用测试实例或存档副本，不要只保留一份重要存档。
-原 RC1 标签、附件和校验值不变；请使用本版本自己的校验文件。
+对应源码见 docs/SOURCE.txt，采用 GPL-3.0-or-later。
+许可证、隐私、安全报告和详细发布说明位于 docs/。
+干净电脑、真实多账号/服务器及真实存档完整升级仍需实际验收。
+先用测试实例或存档副本，不要只留一份重要数据。
+旧 RC1、RC2 标签、附件与哈希不变，请使用 RC3 自己的校验文件。
 
-反馈请说明版本、Windows 版本、步骤及已脱敏错误文字。
-请勿发送密码、登录令牌、账号文件或未经检查的私人日志。
+反馈请说明版本、Windows 版本、复现步骤及已脱敏错误文字。
+不要发送密码、令牌、账号文件或未经检查的私人日志。
 维护者 K4ssia：477619464@qq.com
+项目：https://github.com/Ph1lK4/GregShift
 
-English: Fully extract the package and run EML.exe. Keep app/ intact.
-.NET is bundled; Java and game files are not. Read UPGRADE.txt before
-updating an existing installation. This release candidate is unsigned.
+English: Extract the entire package and run EML.exe. Keep app/ intact.
+.NET is bundled; Java, games and WebView2 Evergreen Runtime are not.
+Read UPGRADE.txt before updating. Back up your data and export important
+Planner plans as JSON. This release candidate is unsigned.

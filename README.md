@@ -4,13 +4,13 @@
 
 **为国内 GT New Horizons（GTNH）玩家做的 Windows 启动器。**
 
-简体中文 | [English](README.en.md) · [下载测试版](https://github.com/Ph1lK4/EML/releases) · [使用文档](#使用文档) · [反馈问题](https://github.com/Ph1lK4/EML/issues)
+简体中文 | [English](README.en.md) · [下载测试版](https://github.com/Ph1lK4/GregShift/releases) · [使用文档](#使用文档) · [反馈问题](https://github.com/Ph1lK4/GregShift/issues)
 
 GTNH 往往一玩就是很久。整合包更新了，存档、地图和个人设置却还在旧实例里。GregShift 想把安装、游玩和更新接起来：下载整合包、准备 Java、启动游戏，再把熟悉的世界带到新版，不用每次对着文件夹重新搬一遍。
 
 项目原名 EML，由 K4ssia 个人维护，也支持其他常见整合包及 Minecraft Java 版原版。**这是第三方项目，并非 GTNH、Mojang 或 Microsoft 官方启动器。**
 
-> 当前公开测试版为 **1.0-RC2，尚未签名**，不是正式版。本文介绍当前源码，部分新功能尚未包含在已发布的 RC2 中，请以所下载版本的发布说明为准。首次测试或升级前，请备份存档。
+> 当前版本为 **1.0-RC3 候选测试版，尚未签名**，不是正式版。下载和使用前请阅读 [RC3 发布说明](docs/release-rc3.md)，首次测试或升级前请备份存档。旧 RC2 下载与校验值保留，不包含本文介绍的全部新功能。
 
 ## 界面预览
 
@@ -105,12 +105,12 @@ GTNH 往往一玩就是很久。整合包更新了，存档、地图和个人设
 
 发布包面向 **Windows x64**，自带启动器所需 .NET，不需要 Visual Studio 或 .NET SDK。Java 和游戏另行准备。
 
-1. 从 [GitHub Releases](https://github.com/Ph1lK4/EML/releases) 下载测试包，完整解压到有写入权限的目录，运行根目录 **`EML.exe`**。不要在压缩软件中运行，也不要只复制 EXE 或移除 `app/`。
+1. 从 [GitHub Releases](https://github.com/Ph1lK4/GregShift/releases) 下载测试包，完整解压到有写入权限的目录，运行根目录 **`EML.exe`**。不要在压缩软件中运行，也不要只复制 EXE 或移除 `app/`。
 2. 在 GTNH 专区下载本体，或下载、导入其他实例。等待依赖补全结束，按提示处理仍缺少的文件。
 3. 检测或下载 Java；需要正版启动时先登录微软账号。在启动设置中核对身份、Java 和内存，保存参数后启动。
 4. 首次使用、更新或迁移先用存档副本测试；出现问题时查看结果说明和本次运行日志。
 
-更名为 GregShift 不会移动原 EML 数据，部分程序名和路径仍沿用 EML。升级启动器前先关闭游戏和所有任务，按 [RC2 发布与升级指南](docs/release-rc2.md)保留数据，**不要清空旧目录再解压**。实例 ZIP 不包含实例外的共享运行依赖、账号凭证或完整迁移备份，不能代替整个数据目录的备份。
+更名为 GregShift 不会移动原 EML 数据，部分程序名和路径仍沿用 EML。升级启动器前先关闭游戏和所有任务，按 [RC3 发布与升级指南](docs/release-rc3.md)保留数据，**不要清空旧目录再解压**。实例 ZIP 不包含实例外的共享运行依赖、账号凭证或完整迁移备份，不能代替整个数据目录的备份。
 
 ## 使用前需要知道
 
@@ -126,11 +126,11 @@ GTNH 往往一玩就是很久。整合包更新了，存档、地图和个人设
 - GTNH：[专区与推荐内容](docs/gtnh-hub.md) · [版本升级与数据迁移](docs/gtnh-player-data-migration.md) · [工具](docs/gtnh-tools.md) · [原生工具](docs/gtnh-native-tools.md)
 - 安装：[下载实例](docs/instance-downloads.md) · [文件夹导入](docs/folder-import.md) · [Java 下载](docs/java-downloads.md) · [下载中心](docs/download-center.md)
 - 游玩：[微软账号](docs/microsoft-login.md) · [启动设置与日志](docs/launching.md) · [在线模组](docs/online-mod-management.md) · [本地模组](docs/local-mod-management.md)
-- 维护：[外观设置](docs/appearance.md) · [文件变化与完整性](docs/gameplay-file-policy.md) · [备份与恢复边界](docs/instance-backups.md) · [升级发布包](docs/release-rc2.md) · [卸载与保留数据](docs/uninstall.md)
+- 维护：[外观设置](docs/appearance.md) · [文件变化与完整性](docs/gameplay-file-policy.md) · [备份与恢复边界](docs/instance-backups.md) · [升级发布包](docs/release-rc3.md) · [卸载与保留数据](docs/uninstall.md)
 
 ## 反馈、隐私与安全
 
-维护者：**K4ssia**。普通问题可在 [GitHub Issues](https://github.com/Ph1lK4/EML/issues)反馈；联系、隐私问题与安全漏洞私报邮箱：**[477619464@qq.com](mailto:477619464@qq.com)**。
+维护者：**K4ssia**。普通问题可在 [GitHub Issues](https://github.com/Ph1lK4/GregShift/issues)反馈；联系、隐私问题与安全漏洞私报邮箱：**[477619464@qq.com](mailto:477619464@qq.com)**。
 
 反馈请带上启动器版本、整合包与 Java 版本、复现步骤及必要的错误信息。先脱敏日志，不要公开令牌、账号文件、服务器私人信息或完整实例。安全漏洞请私下报告。
 
