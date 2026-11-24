@@ -1,0 +1,70 @@
+id	name	weight	component1	component2
+Aequalitas	平等,平衡,均衡	512	Cognitio	Ordo
+Aer	风	4		
+Alienis	异域,怪异,诡谲	8	Vacuos	Tenebrae
+Aqua	水	2		
+Arbor	树木,木材	4	Aer	Herba
+Astrum	星辰,星座,天国	512	Lux	Primordium
+Auram	灵气	64	Praecantatio	Aer
+Bestia	野兽	64	Motus	Victus
+Caelum	宙空	512	Vitreus	Metallum
+Cognitio	思维,记忆,认知	4	Ignis	Spiritus
+Corpus	肉体	16	Mortuus	Bestia
+Desidia	怠惰,懒散,拖延	64	Vinculum	Spiritus
+Electrum	电力，闪电	1	Potentia	Machina
+Exanimis	不死,亡灵	16	Motus	Mortuus
+Fabrico	合成,工艺	1	Humanus	Instrumentum
+Fames	饥饿	64	Victus	Vacuos
+Gelum	寒冰,霜冻,寒冷	64	Ignis	Perditio
+Gloria	荣耀,荣誉,声誉	512	Humanus	Iter
+Gula	饕餮,挥霍,放纵	16	Fames	Vacuos
+Herba	植物	4	Victus	Terra
+Humanus	人类	64	Bestia	Cognitio
+Ignis	火	4		
+Infernus	下界,恶魔,地狱火	64	Ignis	Praecantatio
+Instrumentum	工具,仪器	1	Humanus	Ordo
+Invidia	妒忌,嫉妒,不安	512	Sensus	Fames
+Ira	暴怒,恼怒,怒火	64	Telum	Ignis
+Iter	旅行,行程	4	Motus	Terra
+Limus	史莱姆,黏液	16	Victus	Aqua
+Lucrum	贪婪,贪财	4	Humanus	Fames
+Lux	光明	8	Aer	Ignis
+Luxuria	欲望,欲念,无度	512	Corpus	Fames
+Machina	机械,机构	1	Motus	Instrumentum
+Magneto	磁力，吸引	16	Metallum	Iter
+Messis	作物	16	Herba	Humanus
+Metallum	金属	1	Terra	Vitreus
+Meto	收获	64	Messis	Instrumentum
+Mortuus	死亡	64	Victus	Perditio
+Motus	移动,动作	4	Aer	Ordo
+Nebrisum	欺骗，偷袭	64	Perfodio	Lucrum
+Ordo	秩序,规则,纯净	1		
+Pannus	布匹,材料,覆盖	8	Instrumentum	Bestia
+Perditio	熵增,混沌,解构	2		
+Perfodio	矿藏	64	Humanus	Terra
+Permutatio	贸易,交换	16	Perditio	Ordo
+Potentia	能量	2	Ordo	Ignis
+Praecantatio	魔力	8	Vacuos	Potentia
+Primordium	起始,起源,源头	512	Vacuos	Motus
+Radio	辐射	64	Lux	Potentia
+Sano	治疗,痊愈	64	Victus	Ordo
+Sensus	感官	4	Aer	Spiritus
+Spiritus	灵魂	64	Victus	Mortuus
+Strontio	愚蠢，无能	64	Cognitio	Perditio
+Superbia	傲慢,自大,轻蔑	64	Volatus	Vacuos
+Tabernus	靴子,穿越	64	Tutamen	Iter
+Telum	武器,攻击,伤害	16	Instrumentum	Ignis
+Tempestas	气候	64	Aer	Aqua
+Tempus	时间,须臾,永远	64	Vacuos	Ordo
+Tenebrae	黑暗	16	Vacuos	Lux
+Terminus	游戏之终结,启示录,天启,粉碎一切	512	Lucrum	Alienis
+Terra	地	4		
+Tutamen	装备,防护	4	Instrumentum	Terra
+Vacuos	虚空	8	Aer	Perditio
+Venenum	毒药	64	Aqua	Perditio
+Vesania	疯癫,癫狂,狂热	512	Cognitio	Vitium
+Victus	生命	8	Aqua	Terra
+Vinculum	陷阱,监禁	16	Motus	Perditio
+Vitium	腐化	64	Praecantatio	Perditio
+Vitreus	水晶,玻璃,澄澈	2	Terra	Ordo
+Volatus	飞行	8	Aer	Motus

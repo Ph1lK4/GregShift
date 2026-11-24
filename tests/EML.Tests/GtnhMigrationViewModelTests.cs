@@ -130,14 +130,25 @@ public sealed partial class GtnhMigrationTests
         public bool? Confirmation { get; init; } = false;
         public Action? BeforeConfirmation { get; init; }
         public GtnhInstanceInfo? Target { get; private set; }
+        public GtnhInstanceInfo? UpgradeSource { get; private set; }
+        public IReadOnlyList<GtnhInstanceInfo> UpgradeTargets { get; private set; } = [];
+        public Func<GtnhInstanceInfo, IReadOnlyList<GtnhInstanceInfo>, MigrationTargetChoice?>? UpgradeChoice { get; init; }
+        public InstanceMigrationPlan? Preview { get; private set; }
         public MigrationSelection Selection { get; init; } = new(["servers"], true, true);
+        /// <summary>升级测试固定旧实例，默认选择唯一较新版；可注入取消或准备新版动作。</summary>
+        public MigrationTargetChoice? ChooseUpgradeTarget(GtnhInstanceInfo source, IReadOnlyList<GtnhInstanceInfo> targets)
+        {
+            UpgradeSource = source; UpgradeTargets = targets.ToArray();
+            return UpgradeChoice is not null ? UpgradeChoice(source, targets) :
+                new(targets.Single(), GtnhMigrationMode.FullClient);
+        }
         /// <summary>选择唯一旧实例，记录固定接收方。</summary>
         public MigrationSourceChoice? ChooseSource(GtnhInstanceInfo target, IReadOnlyList<GtnhInstanceInfo> sources)
         { Target = target; return new(sources.Single(), GtnhMigrationMode.FullClient); }
         /// <summary>返回测试指定的范围和风险确认，默认仅迁移服务器列表。</summary>
         public MigrationSelection? ChooseGroups(GtnhInstanceInfo source, GtnhInstanceInfo target, IReadOnlyList<MigrationGroup> groups) => Selection;
         /// <summary>可在确认时模拟外部更改或取消。</summary>
-        public bool? ConfirmMigration(InstanceMigrationPlan plan) { BeforeConfirmation?.Invoke(); return Confirmation; }
+        public bool? ConfirmMigration(InstanceMigrationPlan plan) { Preview = plan; BeforeConfirmation?.Invoke(); return Confirmation; }
         /// <summary>测试明确请求恢复。</summary>
         public bool ConfirmRestore(string instanceName, MigrationRecoveryInfo recovery) => true;
         /// <summary>迁移流程不应调用其他管理对话框。</summary>

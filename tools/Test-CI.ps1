@@ -66,7 +66,9 @@ try {
     if (Test-Path -LiteralPath (Join-Path $applicationRoot 'EML.App.exe')) { throw 'Duplicate legacy entry point in app directory.' }
     foreach ($required in @('eml-layout.json', 'EML.App.dll', 'EML.Core.dll', 'EML.Infrastructure.dll',
             'EML.App.deps.json', 'EML.App.runtimeconfig.json', 'coreclr.dll', 'hostfxr.dll', 'hostpolicy.dll',
-            'PresentationFramework.dll', 'PresentationCore.dll', 'WindowsBase.dll')) {
+            'PresentationFramework.dll', 'PresentationCore.dll', 'WindowsBase.dll',
+            'Microsoft.Web.WebView2.Core.dll', 'Microsoft.Web.WebView2.Wpf.dll',
+            'WebView2Loader.dll')) {
         if (-not (Test-Path -LiteralPath (Join-Path $applicationRoot $required) -PathType Leaf)) {
             throw "Missing self-contained publish output: $required"
         }

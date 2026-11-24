@@ -15,6 +15,9 @@ using EML.Core.Java;
 
 namespace EML.App.ViewModels;
 
+/// <summary>一次下载操作的真实导入结果；路径仅来自提交结果，文件就绪不等同于实际游戏兼容。</summary>
+public sealed record InstanceDownloadOutcome(string Message, string? InstancePath, bool LaunchReady);
+
 /// <summary>负责列表和命令状态；扫描、磁盘写入和窗口交互分别交给对应接口。</summary>
 public partial class InstancesViewModel : ObservableObject
 {
@@ -40,7 +43,7 @@ public partial class InstancesViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(RenameCommand), nameof(DeleteCommand), nameof(ExportCommand),
         nameof(QuickCheckCommand), nameof(FullCheckCommand), nameof(DownloadMissingCommand),
         nameof(LaunchGameCommand), nameof(SaveLaunchSettingsCommand), nameof(ReloadLaunchSettingsCommand),
-        nameof(MigratePlayerDataCommand), nameof(RestoreMigrationCommand))]
+        nameof(MigratePlayerDataCommand), nameof(UpgradeGtnhCommand), nameof(RestoreMigrationCommand))]
     private MinecraftInstance? selectedInstance;
     [ObservableProperty] private string statusText = "正在准备检测本地实例。";
     [ObservableProperty] private string newName = "";
@@ -52,7 +55,7 @@ public partial class InstancesViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand), nameof(RenameCommand), nameof(DeleteCommand), nameof(ExportCommand), nameof(ImportCommand), nameof(ImportFolderCommand),
         nameof(QuickCheckCommand), nameof(FullCheckCommand), nameof(DownloadMissingCommand),
         nameof(LaunchGameCommand), nameof(SaveLaunchSettingsCommand), nameof(ReloadLaunchSettingsCommand),
-        nameof(MigratePlayerDataCommand), nameof(RestoreMigrationCommand), nameof(UseCurrentMicrosoftAccountCommand))]
+        nameof(MigratePlayerDataCommand), nameof(UpgradeGtnhCommand), nameof(RestoreMigrationCommand), nameof(UseCurrentMicrosoftAccountCommand))]
     private bool isBusy;
     /// <summary>没有实例操作正在执行时，允许修改输入和列表选择。</summary>
     public bool CanInteract => !IsBusy;
@@ -103,7 +106,7 @@ public partial class InstancesViewModel : ObservableObject
                 () => { ClearCheckResults(); ResetModSelection(); }, openModWebsite, modLocalization, notifications: _notifications);
         if (migration is not null && gtnhAddons is not null)
             Gtnh = new GtnhHubViewModel(this, migration, gtnhAddons,
-                () => { ClearCheckResults(); ResetModSelection(); }, openModWebsite, notifications: _notifications, packs: gtnhPacks);
+                () => { ClearCheckResults(); ResetModSelection(); }, openModWebsite, notifications: _notifications, packs: gtnhPacks, upgradeDialogs: migrationDialogs);
     }
 
     /// <summary>切换实例后更新名称，并清除属于上一个实例的检查和下载记录。</summary>
@@ -244,6 +247,12 @@ public partial class InstancesViewModel : ObservableObject
     /// <summary>平台下载和 GTNH 镜像共用导入及补全流程，从原包准备到最终结果持续持有实例操作锁。</summary>
     public async Task<string> DownloadInstanceAsync(
         Func<IProgress<FileDownloadProgress>?, CancellationToken, Task<PreparedInstanceArchive>> prepare,
+        IProgress<FileDownloadProgress>? progress, CancellationToken token) =>
+        (await DownloadInstanceWithResultAsync(prepare, progress, token)).Message;
+
+    /// <summary>升级流程需要精确的新实例路径和本次最终复查结果，不从界面选择或结果文案猜测成功。</summary>
+    public async Task<InstanceDownloadOutcome> DownloadInstanceWithResultAsync(
+        Func<IProgress<FileDownloadProgress>?, CancellationToken, Task<PreparedInstanceArchive>> prepare,
         IProgress<FileDownloadProgress>? progress, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(prepare);
@@ -257,29 +266,33 @@ public partial class InstancesViewModel : ObservableObject
             var prepared = await prepare(progress, token);
             token.ThrowIfCancellationRequested();
             var imported = await ImportArchiveCoreAsync(prepared.ArchivePath, token, prepared.ExpectedFormat, prepared.SuggestedName);
-            return TransferStatus + "\n" + StatusText + (imported ? "\n" + DownloadSummary : "");
+            return new(TransferStatus + "\n" + StatusText + (imported.Instance is not null ? "\n" + DownloadSummary : ""),
+                imported.Instance?.InstancePath, imported.LaunchReady);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             TransferStatus = "已取消实例下载";
             StatusText = "尚未导入新实例；已经校验的原包会保留在缓存中。";
             _notifications.Cancelled("实例下载已取消", StatusText, InstancesRoot);
-            return StatusText;
+            return new(StatusText, null, false);
         }
         catch (Exception ex)
         {
             TransferStatus = "实例下载未完成";
             _notifications.Failure("实例下载未完成", ex, InstancesRoot);
-            return StatusText = ex.Message;
+            return new(StatusText = ex.Message, null, false);
         }
         finally { IsBusy = false; }
     }
 
     /// <summary>本地导入与在线下载共用预览、命名、提交和自动补全；调用方持续持有忙碌状态。</summary>
-    private async Task<bool> ImportArchiveCoreAsync(string archive, CancellationToken token, string? expectedFormat = null, string? suggestedName = null)
+    private sealed record ArchiveImportOutcome(InstanceImportResult? Instance, bool LaunchReady);
+
+    private async Task<ArchiveImportOutcome> ImportArchiveCoreAsync(string archive, CancellationToken token, string? expectedFormat = null, string? suggestedName = null)
     {
         var revision = ++_transferRevision;
         InstanceImportResult? imported = null;
+        var launchReady = false;
         try
         {
             TransferPercent = 0;
@@ -294,7 +307,7 @@ public partial class InstancesViewModel : ObservableObject
             {
                 TransferStatus = "已取消导入"; StatusText = "没有新增实例。";
                 _notifications.Cancelled("导入已取消", StatusText, archive);
-                return false;
+                return new(null, false);
             }
             StatusText = "正在导入包内文件……";
             var progress = new Progress<InstanceImportProgress>(p =>
@@ -305,7 +318,7 @@ public partial class InstancesViewModel : ObservableObject
                 TransferStatus = $"{p.Percent:F1}%  {p.FileName}";
             });
             imported = await _importer.ImportAsync(archive, name, progress, token);
-            await CompleteImportedInstanceAsync(imported, archive, token);
+            launchReady = await CompleteImportedInstanceAsync(imported, archive, token);
         }
         catch (OperationCanceledException)
         {
@@ -321,11 +334,11 @@ public partial class InstancesViewModel : ObservableObject
             else _notifications.Warning(TransferStatus, StatusText, archive, imported.InstancePath, NoticeExceptionPath(ex));
         }
         finally { ++_transferRevision; }
-        return imported is not null;
+        return new(imported, launchReady);
     }
 
     /// <summary>归档与文件夹导入共用提交后的刷新和补全，始终使用新实例路径并只发布一次结果通知。</summary>
-    private async Task CompleteImportedInstanceAsync(InstanceImportResult imported, string sourcePath, CancellationToken token)
+    private async Task<bool> CompleteImportedInstanceAsync(InstanceImportResult imported, string sourcePath, CancellationToken token)
     {
         ++_transferRevision;
         TransferPercent = 100;
@@ -340,16 +353,21 @@ public partial class InstancesViewModel : ObservableObject
             sourceFormat.Equals("CurseForge", StringComparison.OrdinalIgnoreCase) ||
             sourceFormat.Equals("Zip", StringComparison.OrdinalIgnoreCase))
         {
-            var notice = await RunDownloadAsync(imported.InstancePath, token, afterImport: true);
+            var launchReady = false;
+            var notice = await RunDownloadAsync(imported.InstancePath, token, afterImport: true,
+                reportCompleted: report => launchReady = report.LaunchReady && !report.IsCanceled &&
+                    report.CheckError is null && !token.IsCancellationRequested);
             if (refreshMessage is not null)
                 notice = notice with { Kind = notice.Kind == OperationNoticeKind.Success ? OperationNoticeKind.Warning : notice.Kind,
                     Message = notice.Message + "\n" + refreshMessage };
             _notifications.Report(notice with { Paths = notice.Paths.Append(sourcePath).ToArray() });
+            return launchReady;
         }
         else
         {
             StatusText += " 当前格式已保存本地文件；可点击“补全实例依赖”继续检查。";
             _notifications.Warning("实例已导入，运行依赖尚未检查", StatusText, sourcePath, imported.InstancePath);
+            return false;
         }
     }
 

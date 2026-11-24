@@ -9,12 +9,12 @@
    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="280"/></Grid.ColumnDefinitions>
    <StackPanel Margin="0,0,20,0">
     <TextBlock Text="GTNH 专区" Style="{StaticResource PageTitle}"/>
-    <TextBlock Text="本体下载、适配资源与旧版数据迁移。" Style="{StaticResource PageSubtitle}"/>
+    <TextBlock Text="本体下载、适配资源与版本升级。" Style="{StaticResource PageSubtitle}"/>
    </StackPanel>
    <StackPanel Grid.Column="1">
-    <StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding IsPackDownloads}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+    <StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding IsIndependentSection}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsMigration}" Value="True"/><Condition Binding="{Binding HasPreparedUpgrade}" Value="True"/></MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Collapsed"/></MultiDataTrigger></Style.Triggers></Style></StackPanel.Style>
     <TextBlock Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,6">
-     <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="目标 GTNH 实例"/><Style.Triggers><DataTrigger Binding="{Binding IsMigration}" Value="True"><Setter Property="Text" Value="接收数据的新版 GTNH"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+     <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="目标 GTNH 实例"/><Style.Triggers><DataTrigger Binding="{Binding IsMigration}" Value="True"><Setter Property="Text" Value="要升级的旧 GTNH 实例"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
     </TextBlock>
     <ComboBox ItemsSource="{Binding Targets}" SelectedItem="{Binding SelectedTarget}" IsEnabled="{Binding CanInteract}" AutomationProperties.Name="GTNH 目标实例">
      <ComboBox.ItemTemplate><DataTemplate><TextBlock TextTrimming="CharacterEllipsis"><TextBlock.Text><MultiBinding StringFormat="{}{0} · {1}"><Binding Path="Name"/><Binding Path="Version"/></MultiBinding></TextBlock.Text></TextBlock></DataTemplate></ComboBox.ItemTemplate>
@@ -23,11 +23,11 @@
   </Grid>
   <StackPanel Grid.Row="1" Margin="0,0,0,14">
    <TextBlock Text="{Binding TargetStatus}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,12">
-    <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><DataTrigger Binding="{Binding IsPackDownloads}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+    <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><DataTrigger Binding="{Binding IsIndependentSection}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
    </TextBlock>
    <DockPanel>
     <Button DockPanel.Dock="Right" Content="刷新 GTNH 实例" Command="{Binding RefreshTargetsCommand}">
-     <Button.Style><Style TargetType="Button" BasedOn="{StaticResource QuietButton}"><Style.Triggers><DataTrigger Binding="{Binding IsPackDownloads}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style>
+     <Button.Style><Style TargetType="Button" BasedOn="{StaticResource QuietButton}"><Style.Triggers><DataTrigger Binding="{Binding IsIndependentSection}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style>
     </Button>
     <WrapPanel>
      <Button Content="下载本体" Command="{Binding ShowPackDownloadsCommand}" Margin="0,0,8,0">
@@ -42,7 +42,7 @@
      <Button Content="光影" Command="{Binding ShowShadersCommand}" Margin="0,0,8,0">
       <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers><DataTrigger Binding="{Binding IsShaders}" Value="True"><Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/><Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource SelectionBorderBrush}"/></DataTrigger></Style.Triggers></Style></Button.Style>
      </Button>
-     <Button Content="数据迁移" Command="{Binding ShowMigrationCommand}">
+     <Button Content="版本升级" Command="{Binding ShowMigrationCommand}" Margin="0,0,8,0">
       <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers><DataTrigger Binding="{Binding IsMigration}" Value="True"><Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/><Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource SelectionBorderBrush}"/></DataTrigger></Style.Triggers></Style></Button.Style>
      </Button>
     </WrapPanel>
@@ -138,28 +138,55 @@
    <ScrollViewer x:Name="MigrationScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel>
      <TextBlock Text="把熟悉的世界，带到新版 GTNH" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"/>
-     <TextBlock Text="旧实例保留原件，新实例接收存档与本地记录。预览并确认后才会复制文件。" Style="{StaticResource PageSubtitle}" TextWrapping="Wrap" Margin="0,8,0,16"/>
-     <!-- 来源仍在迁移弹窗中选择，页面不将当前目标误标成已选来源。 -->
+     <TextBlock Text="选择旧实例，在弹窗中选择要下载的新版。启动器会安装到独立目录，补全成功后再由你确认迁移数据，无需提前导入新版。" Style="{StaticResource PageSubtitle}" TextWrapping="Wrap" Margin="0,8,0,16"/>
+     <!-- 下载后固定新旧身份，不随当前实例的选择改变升级方向。 -->
      <Grid Margin="0,0,0,18">
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
       <Border Background="{DynamicResource RaisedSurfaceBrush}" CornerRadius="8" Padding="14">
        <StackPanel>
         <TextBlock Text="来源 · 旧实例" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
-        <TextBlock Text="在迁移预览中选择" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"/>
+        <TextBlock Text="{Binding UpgradeSourceName}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"/>
+        <TextBlock Text="{Binding UpgradeSourceVersion}" Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"/>
        </StackPanel>
       </Border>
       <TextBlock Grid.Column="1" Text="→" FontSize="22" Foreground="{DynamicResource SecondaryAccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       <Border Grid.Column="2" Background="{DynamicResource RaisedSurfaceBrush}" CornerRadius="8" Padding="14">
        <StackPanel>
         <TextBlock Text="接收 · 新实例" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
-        <TextBlock Text="{Binding SelectedTarget.Name, TargetNullValue=请在页面上方选择新版, FallbackValue=请在页面上方选择新版}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"/>
+        <TextBlock Text="{Binding UpgradeTargetName}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"/>
+        <TextBlock Text="独立目录，不覆盖旧版" Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"/>
        </StackPanel>
       </Border>
      </Grid>
+     <StackPanel>
+      <StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding HasPreparedUpgrade}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+      <Button Content="升级 GTNH · 选择新版" Command="{Binding PrepareUpgradeDownloadCommand}" IsEnabled="{Binding HasTarget}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="0,0,0,12"/>
+      <Button Content="取消新版准备" Command="{Binding PrepareUpgradeDownloadCancelCommand}" HorizontalAlignment="Left" Margin="0,0,0,12" Visibility="{Binding IsPreparingUpgrade, Converter={StaticResource VisibleWhenTrue}}"/>
+      <StackPanel Visibility="{Binding IsPreparingUpgrade, Converter={StaticResource VisibleWhenTrue}}" Margin="0,0,0,12">
+       <ProgressBar Value="{Binding Packs.ArchivePercent, Mode=OneWay}" Maximum="100" Height="4" Margin="0,0,0,6"/>
+       <TextBlock Text="{Binding Packs.ArchiveProgress}" Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" FontSize="12"/>
+       <TextBlock Text="{Binding Instances.TransferStatus}" Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" FontSize="12" Margin="0,6,0,0"/>
+      </StackPanel>
+     </StackPanel>
+     <TextBox Text="{Binding UpgradeStatus, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent" Padding="0,0,0,14"/>
+     <Border Background="{DynamicResource InfoSoftBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,18" Visibility="{Binding HasPreparedUpgrade, Converter={StaticResource VisibleWhenTrue}}">
+      <StackPanel>
+       <TextBlock Text="新版已准备好，接下来迁入个人数据" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+       <TextBlock Text="请先试运行空白新版并关闭游戏，再继续选择存档、地图、服务器列表等数据。额外模组默认不选，需要单独确认不兼容风险。" TextWrapping="Wrap" Margin="0,0,0,12"/>
+       <CheckBox IsChecked="{Binding UpgradeServerClient}" IsEnabled="{Binding CanInteract}" Margin="0,0,0,12"><TextBlock Text="我只在服务器游玩（仅迁移客户端记录）" TextWrapping="Wrap"/></CheckBox>
+       <WrapPanel>
+        <Button Content="继续升级 · 选择数据" Command="{Binding ContinueUpgradeCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8"/>
+        <Button Content="试运行新版" Command="{Binding TrialUpgradeCommand}" Margin="0,0,8,8"/>
+        <Button Content="停止游戏" Command="{Binding Instances.StopGameCommand}" Margin="0,0,0,8" Visibility="{Binding Instances.IsGameRunning, Converter={StaticResource VisibleWhenTrue}}"/>
+       </WrapPanel>
+       <Button Content="取消继续升级" Command="{Binding ContinueUpgradeCancelCommand}" Style="{StaticResource QuietButton}" HorizontalAlignment="Left" Visibility="{Binding ContinueUpgradeCommand.IsRunning, Converter={StaticResource VisibleWhenTrue}}"/>
+      </StackPanel>
+     </Border>
      <Border Background="{DynamicResource InfoSoftBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,18">
+      <Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding HasPreparedUpgrade}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
       <StackPanel>
        <TextBlock Text="1  导入带本地数据的旧实例" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"/>
-       <TextBlock Text="旧实例已在 EML 中可跳过。否则请导入 Prism 等启动器导出的完整 ZIP，包含存档、地图、服务器列表等个人数据；重新下载的安装包不含游玩记录。" TextWrapping="Wrap" Margin="0,0,0,12"/>
+       <TextBlock Text="旧实例已在 GregShift 中可跳过。否则请导入 Prism 等启动器导出的完整 ZIP，包含存档、地图、服务器列表等个人数据；重新下载的安装包不含游玩记录。" TextWrapping="Wrap" Margin="0,0,0,12"/>
        <WrapPanel>
         <Button x:Name="ImportOldInstanceButton" Content="导入旧实例（含本地数据）" Command="{Binding ImportOldInstanceCommand}" Margin="0,0,8,8" AutomationProperties.Name="导入旧 GTNH 实例及本地数据"/>
         <Button Content="取消导入" Command="{Binding ImportOldInstanceCancelCommand}" Margin="0,0,0,8" Visibility="{Binding IsImportingOldInstance, Converter={StaticResource VisibleWhenTrue}}"/>
@@ -167,17 +194,25 @@
        <TextBlock Text="{Binding MigrationImportHint}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap"/>
       </StackPanel>
      </Border>
-     <TextBlock Text="2  准备并选择新版实例" FontWeight="SemiBold" Margin="0,0,0,8"/>
-     <TextBlock Text="先为新版完成依赖补全并试运行，再在页面上方选择接收实例。保留旧版作为迁移来源。" TextWrapping="Wrap" Margin="0,0,0,16"/>
-     <TextBlock Text="3  预览并迁移本地数据" FontWeight="SemiBold" Margin="0,0,0,8"/>
-     <TextBlock Text="点击“从旧 GTNH 迁入数据”，选择旧实例、核对范围与冲突后开始复制。导入不会自动迁移。" TextWrapping="Wrap" Margin="0,0,0,12"/>
+     <TextBlock Text="弹窗选择新版，在这里完成下载与升级" FontWeight="SemiBold" Margin="0,0,0,8"/>
+     <TextBlock Text="只显示比旧实例更新的版本。下载、导入或依赖补全未完成时不会开始迁移；迁移前还会展示文件预览，新版已有相同模组时保留新版。" TextWrapping="Wrap" Margin="0,0,0,12"/>
      <TextBlock Text="语言偏好会保留，旧版完整汉化包不会复制到新版。额外模组迁移需单独选择并确认兼容风险；不要直接跨越多个大版本迁移存档。" TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,18"/>
-     <WrapPanel IsEnabled="{Binding HasTarget}">
-      <Button Content="从旧 GTNH 迁入数据" Command="{Binding Instances.MigratePlayerDataCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8"/>
-      <Button Content="取消迁移" Command="{Binding Instances.MigratePlayerDataCancelCommand}" Margin="0,0,8,8"/>
+     <Expander Header="已经准备好新版？" Margin="0,0,0,14">
+      <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Style.Triggers><DataTrigger Binding="{Binding HasPreparedUpgrade}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Expander.Style>
+      <StackPanel Margin="0,10,0,0">
+       <TextBlock Text="也可导入已有的新版本，或在中断后选择已下载的新版继续。先在页面上方选旧实例，再确认接收方。" TextWrapping="Wrap" Margin="0,0,0,10"/>
+       <WrapPanel>
+        <Button Content="选择已准备的新版" Command="{Binding Instances.UpgradeGtnhCommand}" Margin="0,0,8,8"/>
+        <Button Content="导入新版实例" Command="{Binding ImportNewInstanceCommand}" Margin="0,0,8,8"/>
+        <Button Content="取消升级迁移" Command="{Binding Instances.UpgradeGtnhCancelCommand}" Margin="0,0,0,8"/>
+       </WrapPanel>
+      </StackPanel>
+     </Expander>
+     <WrapPanel>
       <Button Content="恢复上次迁移" Command="{Binding Instances.RestoreMigrationCommand}" Margin="0,0,8,8"/>
       <Button Content="取消恢复预检" Command="{Binding Instances.RestoreMigrationCancelCommand}" Margin="0,0,0,8"/>
      </WrapPanel>
+     <TextBlock Text="完成后会选中新实例，方便试运行或恢复上次迁移。恢复仅撤销本次迁入，不覆盖之后游玩产生的新改动。" TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,8"/>
      <ProgressBar Value="{Binding Instances.TransferPercent, Mode=OneWay}" Maximum="100" Height="4" Margin="0,12,0,8"/>
      <TextBlock Text="{Binding Instances.TransferStatus}" Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap"/>
      <TextBox Text="{Binding Instances.MigrationStatus, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent" Padding="0,12"/>

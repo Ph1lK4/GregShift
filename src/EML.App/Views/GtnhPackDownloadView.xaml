@@ -6,8 +6,8 @@
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
   <Border Style="{StaticResource CardBorder}" Padding="18" Margin="0,0,0,14">
    <StackPanel>
-    <TextBlock Text="从国内镜像下载 GTNH" FontSize="22" FontWeight="SemiBold"/>
-    <TextBlock Text="Prism 客户端 · 下载后创建新实例，自动补全运行依赖" Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,6,0,12"/>
+    <TextBlock Text="{Binding UpgradeHeading}" FontSize="22" FontWeight="SemiBold"/>
+    <TextBlock Text="{Binding UpgradeHint}" Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,6,0,12"/>
     <WrapPanel>
      <ComboBox x:Name="JavaFilter" ItemsSource="{Binding JavaFilters}" SelectedIndex="{Binding JavaFilterIndex}" Width="155"
                IsEnabled="{Binding CanBrowse}" AutomationProperties.Name="GTNH 本体 Java 筛选" Margin="0,0,14,8"/>
@@ -58,7 +58,7 @@
      </ScrollViewer>
      <StackPanel Grid.Row="1" Margin="0,14,0,0">
       <WrapPanel>
-       <Button Content="下载并导入" Command="{Binding InstallCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8"/>
+       <Button Content="{Binding InstallButtonText}" Command="{Binding InstallCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8"/>
        <Button Content="取消下载 / 导入" Command="{Binding InstallCancelCommand}" Visibility="{Binding IsInstalling, Converter={StaticResource Visible}}" Margin="0,0,0,8"/>
       </WrapPanel>
       <ProgressBar Value="{Binding ArchivePercent, Mode=OneWay}" Maximum="100" Height="4" Margin="0,0,0,6"/>

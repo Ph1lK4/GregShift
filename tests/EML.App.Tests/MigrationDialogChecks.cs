@@ -18,10 +18,41 @@ internal static class MigrationDialogChecks
         try
         {
             VerifySourceSelection(owner, render);
+            VerifyUpgradeTargetSelection(owner, render);
             VerifyGroupRequirements(owner, render);
             VerifyMigrationDecision(owner, render);
         }
         finally { owner.Close(); }
+    }
+
+    /// <summary>升级固定旧实例；新版不预选，完整路径可复制，空列表仍可找到下载／导入入口。</summary>
+    private static void VerifyUpgradeTargetSelection(Window owner, Action<DialogWindow, string> render)
+    {
+        Assert.Null(Create(owner, window =>
+        {
+            Assert.False(Accept(window).IsEnabled);
+            Assert.Null(Assert.Single(Descendants(window.Body).OfType<ComboBox>()).SelectedItem);
+            var buttons = Descendants(window.Body).OfType<Button>().Select(button => button.Content).ToArray();
+            Assert.Contains("下载新版 GTNH", buttons); Assert.Contains("导入新版实例", buttons);
+            render(window, "dialog-upgrade-no-target.png");
+            return false;
+        }).ChooseUpgradeTarget(Old, []));
+        var service = Create(owner, window =>
+        {
+            var target = Assert.Single(Descendants(window.Body).OfType<ComboBox>());
+            Assert.Null(target.SelectedItem); Assert.False(Accept(window).IsEnabled);
+            target.SelectedItem = New;
+            Assert.True(Accept(window).IsEnabled);
+            Assert.Contains(Descendants(window.Body).OfType<TextBox>(), box => box.IsReadOnly &&
+                box.Text.Contains(New.GameDirectory) && box.Text.Contains(New.Version));
+            Assert.Contains(Descendants(window.Body).OfType<TextBox>(), box => box.Text.Contains(Old.GameDirectory));
+            render(window, "dialog-upgrade-target.png");
+            return true;
+        });
+        var choice = service.ChooseUpgradeTarget(Old, [New]);
+        Assert.NotNull(choice); Assert.Same(New, choice.Target);
+        Assert.Equal(UpgradeTargetAction.SelectInstance, choice.Action);
+        Assert.Equal(GtnhMigrationMode.FullClient, choice.Mode);
     }
 
     /// <summary>空列表无法继续；来源切换及时更新版本和完整路径，返回真实选择与服务器模式。</summary>
@@ -64,6 +95,9 @@ internal static class MigrationDialogChecks
             new("world:长期世界", "长期世界存档", true),
             new("language", "中文语言偏好", false),
             new("mod:mods/extra.jar", "自加建筑辅助模组", true)
+            { ExtraModKind = GtnhExtraModCandidateKind.ConfirmedAddition, Description = "已通过 EML 额外安装；仍需核对新版兼容性。" },
+            new("mod:mods/bundled.jar", "Prism 包内模组", false)
+            { ExtraModKind = GtnhExtraModCandidateKind.NeedsConfirmation, Description = "导入时已存在，不能确认由玩家额外添加。" }
         ];
         var service = Create(owner, window =>
         {
@@ -78,6 +112,7 @@ internal static class MigrationDialogChecks
             Assert.True(world.IsChecked == true);
             Assert.False(language.IsChecked == true);
             Assert.False(mod.IsChecked == true);
+            Assert.False(Box(boxes, "Prism 包内模组").IsChecked == true);
             Assert.Equal(Visibility.Collapsed, risk.Visibility);
             Assert.False(next.IsEnabled);
             tested.IsChecked = true;

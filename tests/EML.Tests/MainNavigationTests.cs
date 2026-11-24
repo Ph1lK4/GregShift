@@ -152,6 +152,56 @@ public sealed class MainNavigationTests
         Assert.Equal(0, app.Catalog.Searches);
     }
 
+    /// <summary>工具使用新增索引，不更改其他主页面的既有路由。</summary>
+    [Theory]
+    [InlineData(0, nameof(MainViewModel.IsInstancePage))]
+    [InlineData(1, nameof(MainViewModel.IsOnlinePage))]
+    [InlineData(2, nameof(MainViewModel.IsAccountsPage))]
+    [InlineData(3, nameof(MainViewModel.IsJavaPage))]
+    [InlineData(4, nameof(MainViewModel.IsGtnhPage))]
+    [InlineData(5, nameof(MainViewModel.IsLaunchSettingsPage))]
+    [InlineData(6, nameof(MainViewModel.IsDownloadsPage))]
+    [InlineData(7, nameof(MainViewModel.IsDownloadCenterPage))]
+    [InlineData(8, nameof(MainViewModel.IsAppearancePage))]
+    [InlineData(9, nameof(MainViewModel.IsGtnhToolsPage))]
+    public async Task MainPageIndicesRemainStable(int index, string activeProperty)
+    {
+        await using var app = new Harness();
+        app.Main.SelectedPage = index;
+        var pages = new[] { nameof(MainViewModel.IsInstancePage), nameof(MainViewModel.IsOnlinePage),
+            nameof(MainViewModel.IsAccountsPage), nameof(MainViewModel.IsJavaPage), nameof(MainViewModel.IsGtnhPage),
+            nameof(MainViewModel.IsLaunchSettingsPage), nameof(MainViewModel.IsDownloadsPage),
+            nameof(MainViewModel.IsDownloadCenterPage), nameof(MainViewModel.IsAppearancePage),
+            nameof(MainViewModel.IsGtnhToolsPage) };
+        foreach (var page in pages)
+            Assert.Equal(page == activeProperty, (bool)typeof(MainViewModel).GetProperty(page)!.GetValue(app.Main)!);
+        Assert.Equal(index, app.Main.SelectedPage);
+    }
+
+    /// <summary>工具主页面不要求选中实例，且只关闭旧面板，不启动隐藏的模组查询。</summary>
+    [Fact]
+    public async Task ToolsNavigationClosesWorkspaceAndNotifiesItsOwnPage()
+    {
+        await using var app = new Harness();
+        app.Main.OpenInstanceSectionCommand.Execute("details");
+        var changed = new List<string?>();
+        app.Main.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+        app.Main.SelectedPage = 9;
+        app.Instances.SelectedInstance = null;
+        app.Online.SearchText = "hidden while reading tools";
+        await app.Online.SearchTask;
+
+        Assert.True(app.Main.IsGtnhToolsPage);
+        Assert.False(app.Main.IsGtnhPage);
+        Assert.False(app.Main.InstanceWorkspaceOpen);
+        Assert.False(app.Main.IsWorkspaceVisible);
+        Assert.Contains(nameof(MainViewModel.IsGtnhToolsPage), changed);
+        Assert.Equal(0, app.Catalog.Searches);
+        app.Main.SelectedPage = 4;
+        Assert.True(app.Main.IsGtnhPage);
+        Assert.False(app.Main.IsGtnhToolsPage);
+    }
+
     /// <summary>下载中心只切换展示，保留实例及启动草稿，不触发隐藏页面搜索。</summary>
     [Fact]
     public async Task DownloadCenterIsIndependentAndKeepsInstanceAndLaunchInput()
@@ -312,7 +362,7 @@ public sealed class MainNavigationTests
     {
         await using var app = new Harness();
         app.Main.SelectedPage = -1;
-        app.Main.SelectedPage = 9;
+        app.Main.SelectedPage = 10;
         Assert.Equal(0, app.Main.SelectedPage);
         app.Main.Dispose();
         app.Instances.SelectedDetailTab = 4;

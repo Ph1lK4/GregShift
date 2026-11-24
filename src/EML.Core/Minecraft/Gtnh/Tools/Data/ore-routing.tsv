@@ -1,0 +1,349 @@
+oreDict	translatedName	preset	controversial	available	recommended
+Adamantium	精金		false	none	false
+AgarditeCd	钇砷铜矿（Cd）		false	electrolyzer	false
+AgarditeLa	钇砷铜矿（La）		false	electrolyzer	false
+AgarditeNd	钇砷铜矿（Nd）		false	electrolyzer	false
+AgarditeY	钇砷铜矿（Y）		false	electrolyzer	false
+Alburnite	硫碲金锗矿		false	electrolyzer	true
+Alduorite	神秘蓝金		false	none	false
+Almandine	铁铝榴石		false	electrolyzer	true
+Aluminium	铝		false	none	false
+Aluminiumfluoride	氟化铝		false	electrolyzer	false
+Alunite	明矾石		false	electrolyzer	true
+Amber	琥珀	MPS	false	electrolyzer	false
+Americium	镅		false	none	false
+Amethyst	紫水晶	MPS	false	electrolyzer	false
+AncientGranite	古花岗岩		false	dehydrator	true
+Andradite	钙铁榴石		false	electrolyzer	false
+Antimony	锑		false	none	false
+AnyCarbon	任何碳		false	electrolyzer	false
+AnyCopper	任意铜		false	centrifuge	false
+AnyIron	任意铁		false	centrifuge	false
+Apatite	磷灰石		false	electrolyzer	false
+Ardite	阿迪特		false	none	false
+Arsenic	砷		false	none	false
+Arsenopyrite	砷黄铁		false	electrolyzer	false
+Asbestos	石棉		false	electrolyzer	false
+Atheneite	砷汞钯		false	electrolyzer	false
+BArTiMaEuSNeK	BArTiMaEuSNeK	MPTM	false	centrifuge	true
+BandedIron	带状铁矿		false	electrolyzer	false
+Barite	重晶石		false	electrolyzer	true
+BariteRa	重晶石（Ra）		false	electrolyzer	true
+Barium	钡		false	none	false
+BasalticMineralSand	玄武岩矿砂		false	centrifuge	false
+Bastnasite	氟碳镧铈矿		true	electrolyzer	true
+Bauxite	铝土矿		true	electrolyzer	true
+Bedrockium	基岩		false	none	false
+Bentonite	膨润土		false	electrolyzer	true
+Beryllium	铍		false	none	false
+Bismuth	铋		false	none	false
+Bismuthinite	辉铋		false	electrolyzer	true
+Bismutite	泡铋		false	electrolyzer	true
+BlackPlutonium	黑钚		false	centrifuge	false
+BlueTopaz	蓝黄玉	MPS	false	electrolyzer	false
+Borax	硼砂		false	electrolyzer	false
+Bornite	斑铜		false	electrolyzer	true
+BrownLimonite	棕褐铁矿		false	centrifuge	false
+Cadmium	镉		false	none	false
+Caesium	铯		false	none	false
+Calcite	方解石		false	electrolyzer	false
+CalciumDisilicide	二硅化钙		false	electrolyzer	false
+CalciumHydride	氢化钙		false	electrolyzer	false
+CallistoIce	木卫四冰		false	none	false
+Carbon	碳		false	none	false
+Cassiterite	锡石	MPS	false	electrolyzer	false
+CassiteriteSand	锡石矿砂		false	electrolyzer	false
+Cerite	铈硅石		false	dehydrator	true
+Cerium	铈		false	none	false
+CertusQuartz	赛特斯石英	MPS	false	none	false
+Ceruclase	暗影秘银		false	none	false
+Chalcopyrite	黄铜矿	MTM	false	electrolyzer	false
+ChargedCertusQuartz	充能赛特斯石英	MPS	false	none	false
+Cheese	奶酪		false	none	false
+Chrome	铬		false	none	false
+Chromite	铬铁矿		false	electrolyzer	true
+Chromo-Alumino-Povondraite	铬铝电气石	MPMC	false	electrolyzer	false
+Chrysotile	白石棉		false	centrifuge	true
+Cinnabar	朱砂	MPS	false	centrifuge	false
+Coal	煤		false	none	false
+Cobalt	钴		false	none	false
+Cobaltite	辉钴矿		false	electrolyzer	false
+Comancheite	溴汞石		false	electrolyzer	false
+Cooperite	硫铂矿	MBTM	false	centrifuge	false
+Copper	铜		false	none	false
+CosmicNeutronium	宇宙中子态素		false	none	false
+Crocoite	赤铅矿		false	electrolyzer	false
+CrudeRhodiumMetal	粗制铑金属		false	none	false
+Cryolite	冰晶石		false	electrolyzer	false
+CryoliteF	冰晶石（F）		false	electrolyzer	false
+DarkIron	玄铁		false	none	false
+Debris	远古残骸	None	false	none	false
+DeepIron	深渊铁	MMC	false	centrifuge	false
+DemicheleiteBr	溴硫铋矿（Br）		false	electrolyzer	false
+Desh	戴斯		false	none	false
+Diamond	钻石	MPS	false	none	false
+Diatomite	硅藻土		false	centrifuge	true
+Dilithium	双锂	MPS	false	none	false
+Djurleite	久辉铜		false	electrolyzer	false
+Dolomite	白云石		false	electrolyzer	false
+Draconium	龙		false	none	false
+DraconiumAwakened	觉醒龙		false	none	false
+Duralumin	硬铝		false	centrifuge	false
+Dysprosium	镝		false	none	false
+Electrotine	蓝石		false	none	false
+Electrum	琥珀金		false	centrifuge	false
+ElectrumFlux	通流琥珀金		false	none	false
+Emerald	绿宝石		false	electrolyzer	false
+Emery	金刚砂		false	none	false
+Enriched-NaquadahOxideMixture	氧化富集硅岩混合物		false	none	false
+Erbium	铒		false	none	false
+Europium	铕		false	none	false
+Fayalite	铁橄榄石		false	electrolyzer	false
+Ferberite	钨铁		false	none	false
+Firestone	火石		false	none	false
+Flerovium_GT5U			false	none	false
+Florencite	磷铝铈矿		false	electrolyzer	false
+Fluor-Buergerite	氟铁电气石	MPMC	false	electrolyzer	false
+Fluorcaphite	氟碳铈矿		false	dehydrator	true
+FluoriteF	氟石（F）		false	none	false
+FoolsRuby	尖晶石		false	electrolyzer	false
+Force	力量		false	none	false
+Forcicium	力之宝石	MPS	false	none	false
+Forcillium	力场宝石	MPS	false	none	false
+Forsterite	镁橄榄石		false	electrolyzer	false
+FullersEarth	漂白土		false	electrolyzer	false
+GadoliniteCe	硅铍钇矿（Ce）		false	dehydrator	true
+GadoliniteY	硅铍钇矿（Y）		false	dehydrator	true
+Gadolinium	钆		false	none	false
+Galena	方铅矿		true	electrolyzer	false
+Gallium	镓		false	none	false
+GarnetRed	红石榴石	MPS	false	centrifuge	false
+GarnetSand	石榴石矿砂		false	centrifuge	true
+GarnetYellow	黄石榴石	MPS	false	centrifuge	false
+Garnierite	硅镁镍矿		false	electrolyzer	false
+Geikielite	镁钛矿		false	electrolyzer	false
+Glauconite	海绿石		false	electrolyzer	true
+GlauconiteSand	海绿石矿砂		false	electrolyzer	true
+Gold	金		false	none	false
+GraniticMineralSand	花岗岩矿砂		false	centrifuge	false
+Graphite	石墨		false	electrolyzer	false
+GreenFuchsite	绿铬云母		false	electrolyzer	false
+GreenSapphire	绿色蓝宝石	MPS	false	none	false
+Greenockite	硫镉		false	electrolyzer	false
+Grossular	钙铝榴石		false	electrolyzer	false
+Gypsum	石膏		false	none	false
+Hedenbergite	钙铁辉石		false	electrolyzer	false
+HeeEndium	终末	M	false	none	false
+HeeEndPowder	末影粉末	M	false	none	false
+HeeIgneousRock	火成岩	M	false	none	false
+HeeInstabilityOrb	震荡球	H	false	none	false
+HeeStardust	星尘	M	false	none	false
+Hibonite	黑铝钙石		false	electrolyzer	false
+Holmium	钬		false	none	false
+Honeaite	碲化金铊	MMC	false	electrolyzer	false
+Huebnerite	钨酸锰		false	none	false
+Ichorium	灵宝		false	none	false
+Ilmenite	钛铁矿		true	none	false
+Indium	铟		true	none	false
+InfinityCatalyst	无尽催化剂		false	none	false
+InfusedAir	风之魔晶	MPS	false	none	false
+InfusedEarth	地之魔晶	MPS	false	none	false
+InfusedEntropy	混沌魔晶	MPS	false	none	false
+InfusedFire	火之魔晶	MPS	false	none	false
+InfusedGold	注魔金		false	none	false
+InfusedOrder	秩序魔晶	MPS	false	none	false
+InfusedWater	水之魔晶	MPS	false	none	false
+Irarsite	硫砷铱	MPMC	false	dehydrator	true
+Iridium	铱	MBTM	false	none	false
+IridiumMetalResidue	铱金属渣		false	none	false
+Iron	铁		false	none	false
+Jade	玉		false	electrolyzer	false
+Jasper	碧玉		false	electrolyzer	false
+Kaolinite	高岭石		false	electrolyzer	true
+Kashinite	硫铑铱矿	MPMC	false	electrolyzer	true
+Knightmetal	骑士金属		false	centrifuge	false
+Koboldite	妖金		false	electrolyzer	true
+Kyanite	蓝晶石		false	electrolyzer	true
+Lafossaite	铊盐	MMC	false	electrolyzer	true
+LanthaniteCe	镧石（Ce）		false	electrolyzer	false
+LanthaniteLa	镧石（La）	MPMC	false	electrolyzer	false
+LanthaniteNd	镧石（Nd）		false	electrolyzer	false
+Lanthanum	镧		false	none	false
+Lapis	青金石		false	none	false
+Lautarite	碘钙石		false	electrolyzer	true
+Lazurite	蓝金石		false	electrolyzer	true
+LeachResidue	浸出渣		false	none	false
+Lead	铅		true	none	false
+Ledox	深铅		false	none	false
+Lepersonnite	莱普生石		false	dehydrator	true
+Lepidolite	锂云母		false	electrolyzer	true
+Lignite	褐煤		false	electrolyzer	false
+Lithium	锂		false	none	false
+Loellingite	斜方砷铁		false	electrolyzer	true
+Lutetium	镥		false	none	false
+Magnesite	菱镁矿		false	electrolyzer	true
+Magnesium	镁		false	none	false
+Magnetite	磁铁矿		false	electrolyzer	false
+Malachite	孔雀石		false	electrolyzer	false
+Manganese	锰		false	none	false
+Manyullyn	玛玉灵		false	centrifuge	false
+MeteoricIron	陨铁	MBTM	false	none	false
+Mica	云母		false	electrolyzer	false
+Miessiite	钯碲硒矿		false	electrolyzer	true
+Mirabilite	芒硝		false	electrolyzer	false
+Mithril	秘银	MBMC	false	centrifuge	false
+Molybdenite	辉钼矿		true	electrolyzer	false
+Molybdenum	钼		true	none	false
+Monazite	独居石		true	electrolyzer	false
+MysteriousCrystal	神秘水晶		false	none	false
+Mytryl	深空秘银		false	none	false
+Naquadah	硅岩		false	centrifuge	false
+NaquadahEnriched	富集硅岩		false	centrifuge	false
+NaquadahOxideMixture	氧化硅岩混合物		false	none	false
+Naquadria	超能硅岩		false	none	false
+NaquadriaOxideMixture	氧化超能硅岩混合物		false	none	false
+Neodymium	钕		false	none	false
+NetherQuartz	下界石英	MPS	false	none	false
+NetherStar	下界之星	MPS	false	none	false
+Neutronium	中子		false	none	false
+Nichromite	镍铬矿		false	electrolyzer	true
+Nickel	镍	MBTM	false	none	false
+Niobium	铌		false	none	false
+Niter	钾硝石		false	centrifuge	true
+Oilsands	油砂	None	false	centrifuge	false
+Olenite	铝电气石	MPMC	false	electrolyzer	true
+Olivine	橄榄石		false	electrolyzer	false
+Opal	蛋白石	MPS	false	electrolyzer	false
+OrangeDescloizite	橙钒铅铜		false	electrolyzer	true
+Orichalcum	山铜		false	none	false
+Oriharukon	奥利哈钢		false	none	false
+Orundum	合成玉		false	none	false
+Osmium	锇	MBTM	false	none	false
+Palladium	钯		false	none	false
+PalladiumMetallicPowder	钯金属		false	none	false
+Pentlandite	镍黄铁矿		false	electrolyzer	false
+Perlite	珍珠岩		false	centrifuge	false
+Perroudite	溴硫银汞		false	electrolyzer	true
+Phosphate	磷酸盐		false	electrolyzer	true
+PigIron	生铁		false	centrifuge	false
+Pitchblende	沥青铀矿		false	centrifuge	true
+Platinum	铂	MBTM	false	none	false
+PlatinumMetallicPowder	铂金属	MBMC	false	none	false
+Plutonium	钚-239		false	centrifuge	false
+Plutonium241	钚-241		false	none	false
+Pollucite	铯榴石	MPTM	false	electrolyzer	true
+Polycrase	锗铀钇矿		false	dehydrator	true
+Powellite	钼钙矿		false	centrifuge	true
+Praseodymium	镨		false	none	false
+Prasiolite	堇云石	MPS	false	electrolyzer	true
+Promethium	钷		false	none	false
+Pumice	浮岩		false	centrifuge	false
+Pyrite	黄铁矿		true	electrolyzer	false
+Pyrochlore	烧绿石	MTM	false	electrolyzer	true
+Pyrolusite	软锰矿		true	electrolyzer	true
+Pyrope	镁铝榴石		false	electrolyzer	true
+Quantium	量子		false	none	false
+Quartz	石英	MPS	false	none	false
+QuartzSand	石英矿砂	MPS	false	centrifuge	false
+Quartzite	石英岩	MPS	false	none	false
+RadioactiveMineralMix	放射性矿物混合物		false	dehydrator	true
+RareEarthI	稀土（I）		false	dehydrator	true
+RareEarthII	稀土（II）		false	dehydrator	true
+RareEarthIII	稀土（III）		false	dehydrator	true
+RarestMetalResidue	稀有金属渣		false	none	false
+Realgar	雄黄		false	centrifuge	true
+RedDescloizite	红钒铅锌		false	electrolyzer	true
+RedFuchsite	红铬云母		false	electrolyzer	true
+RedZircon	红锆石	MPS	false	electrolyzer	true
+Redstone	红石		false	centrifuge	false
+RoastedIron	焙烧铁		false	none	false
+RoastedNickel	焙烧镍		false	none	false
+RockSalt	岩盐		false	electrolyzer	false
+Roquesite	硫铟铜		false	electrolyzer	true
+Rubidium	铷		false	none	false
+Rubracium	褐铜		false	none	false
+Ruby	红宝石		true	electrolyzer	false
+Runite	虚恩		false	none	false
+Rutile	金红石		false	none	false
+Salt	盐		false	none	false
+Saltpeter	硝石		false	electrolyzer	false
+Samarium	钐		false	none	false
+SamarskiteY	铌钇矿（Y）		false	electrolyzer	false
+SamarskiteYb	铌钇矿（Yb）		false	electrolyzer	false
+Sapphire	蓝宝石		false	none	false
+Scandium	钪		false	none	false
+Scheelite	白钨矿		true	none	false
+Shadow	暗影金属		false	none	false
+ShadowIron	暗影铁		false	centrifuge	false
+Silicon	生硅		false	none	false
+SiliconSolarGrade	太阳能级硅（多晶硅）		false	none	false
+Silver	银		false	none	false
+Soapstone	皂石		false	electrolyzer	false
+Sodalite	方钠石		false	electrolyzer	true
+Spessartine	锰铝榴石		false	electrolyzer	false
+Sphalerite	闪锌矿		true	electrolyzer	false
+Spodumene	锂辉石		false	electrolyzer	false
+Steel	钢		false	electrolyzer	false
+Stibnite	辉锑矿		false	centrifuge	false
+Strontium	锶		false	none	false
+Sulfur	硫		false	none	false
+Talc	滑石		false	electrolyzer	true
+Tantalite	钽铁矿		true	electrolyzer	true
+Tantalum	钽		false	none	false
+Tanzanite	坦桑石	MPS	false	electrolyzer	false
+Tartarite	熔火之石		false	none	false
+Tellurium	碲		false	none	false
+Temagamite	碲汞钯		false	electrolyzer	false
+TengamRaw	生镃		false	none	false
+Terbium	铽		false	none	false
+Terlinguaite	黄氯汞		false	electrolyzer	false
+Tetrahedrite	黝铜矿		false	centrifuge	false
+Thorianite	方钍石		false	electrolyzer	false
+Thorium	钍		false	centrifuge	false
+Thulium	铥		false	none	false
+Tiberium	泰伯利亚		false	none	false
+Tin	锡	MPS	false	none	false
+Titanite	榍石		false	electrolyzer	true
+Titanium	钛		false	none	false
+Topaz	黄玉	MPS	false	electrolyzer	false
+TricalciumPhosphate	磷酸三钙	MPS	false	centrifuge	false
+Trinium	三元金属		false	none	false
+Tritanium	三钛		false	none	false
+Trona	天然碱		false	electrolyzer	true
+Tungstate	钨酸锂		false	none	false
+Tungsten	钨		false	none	false
+Uraninite	晶质铀矿		false	centrifuge	false
+Uranium	铀-238		false	centrifuge	false
+Uranium235	铀-235		false	none	false
+Uvarovite	钙铬榴石		false	electrolyzer	false
+Vanadio-Oxy-Dravite	钒镁电气石	MPMC	false	electrolyzer	false
+Vanadium	钒		false	none	false
+VanadiumMagnetite	钒磁铁矿		false	centrifuge	true
+Vermiculite	蛭石		false	electrolyzer	false
+Vinteum	温特姆		false	centrifuge	true
+Vulcanite	胶木		false	none	false
+Vyroxeres	幽冥剧毒结晶		false	none	false
+Wittichenite	硫铋铜		false	electrolyzer	false
+Wollastonite	硅灰石		false	electrolyzer	false
+Wulfenite	钼铅矿		false	centrifuge	true
+Xenotime	磷钇矿		false	electrolyzer	true
+YellowLimonite	黄褐铁矿		false	centrifuge	false
+Ytterbium	镱		false	none	false
+Yttriaite	钇矿		false	electrolyzer	true
+Yttrialite	硅钍钇矿	MPMC	false	electrolyzer	true
+Yttrium	钇		false	none	false
+Yttrocerite	铈钇矿		false	electrolyzer	true
+Zeolite	沸石		false	electrolyzer	true
+Zimbabweite	钛铌铅钠石		false	dehydrator	true
+Zinc	锌		true	none	false
+Zircon	锆石		false	electrolyzer	true
+Zirconolite	钛锆酸钙		false	electrolyzer	true
+Zircophyllite	锆星叶石		false	none	false
+Zirkelite	钛锆钍矿		false	dehydrator	true
+Hydrogen	氢冰	None	false	none	false
+Oxygen	氧冰	None	false	none	false
+Nitrogen	氮冰	None	false	none	false
+Ammonia	氨冰	None	false	none	false
+CarbonDioxide	二氧化碳冰	None	false	none	false
+Methane	甲烷冰	None	false	none	false
+SulfurDioxide	二氧化硫冰	None	false	none	false

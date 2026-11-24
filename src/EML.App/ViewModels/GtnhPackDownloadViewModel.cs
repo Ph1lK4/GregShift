@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using EML.App.Services;
 using EML.Core.Downloads;
 using EML.Core.Minecraft.Gtnh;
+using EML.Core.Minecraft.Migration;
 
 namespace EML.App.ViewModels;
 
@@ -22,6 +23,7 @@ public sealed partial class GtnhPackDownloadViewModel : ObservableObject, IDispo
     private int _queryRevision, _installRevision, _javaFilterIndex;
     private bool _active, _closing, _dirty = true, _includePrereleases;
     private GtnhPackRelease? _selectedRelease;
+    private GtnhInstanceInfo? _upgradeSource;
 
     /// <summary>构造仅接线；联网查询要等页面打开，写入互斥由现有实例服务取得。</summary>
     public GtnhPackDownloadViewModel(IGtnhPackService service,
@@ -46,9 +48,28 @@ public sealed partial class GtnhPackDownloadViewModel : ObservableObject, IDispo
     public bool HasReleases => Releases.Count > 0;
     public bool HasSelectedRelease => SelectedRelease is not null;
     public bool IsPrereleaseSelection => SelectedRelease?.IsPrerelease == true;
+    public bool IsUpgrade => _upgradeSource is not null;
+    public string UpgradeHeading => IsUpgrade ? "选择新版 GTNH" : "从国内镜像下载 GTNH";
+    public string UpgradeHint => _upgradeSource is { } source
+        ? $"升级来源：{source.Name}（GTNH {source.Version}）\n选择更高版本的 Prism 客户端，下载至独立的新实例后继续升级。旧实例不会被覆盖。"
+        : "Prism 客户端 · 下载后创建新实例，自动补全运行依赖";
+    public string InstallButtonText => IsUpgrade ? "下载新版并继续升级" : "下载并导入";
     public string ReleaseInformation => SelectedRelease is not { } release ? "在左侧选择一个版本及 Java 变体。" :
         $"GTNH {release.Version}\nPrism 客户端 · Java {release.JavaVersion}\n" +
         $"{(release.IsPrerelease ? "测试版本" : "稳定版本")} · {release.Size / 1048576d:F1} MiB\n" + release.FileName;
+
+    /// <summary>升级上下文只过滤已有目录，不额外联网；安装期间不能把已确认下载切换到另一个旧实例。</summary>
+    public void ConfigureUpgrade(GtnhInstanceInfo? source)
+    {
+        if (!CanBrowse || Equals(_upgradeSource, source)) return;
+        _upgradeSource = source;
+        SelectedRelease = null;
+        OnPropertyChanged(nameof(IsUpgrade)); OnPropertyChanged(nameof(UpgradeHeading));
+        OnPropertyChanged(nameof(UpgradeHint)); OnPropertyChanged(nameof(InstallButtonText));
+        InstallStatus = IsUpgrade ? "请选择要升级到的版本；下载、导入与补全结束后，再确认迁移内容和兼容风险。"
+            : "选择 Prism 客户端，下载后确认名称并自动导入、补全依赖。";
+        ApplyFilter();
+    }
 
     /// <summary>测试版本需明确开启；变更后取消旧列表，避免迟到响应带回另一种版本范围。</summary>
     public bool IncludePrereleases
@@ -150,7 +171,7 @@ public sealed partial class GtnhPackDownloadViewModel : ObservableObject, IDispo
     private void ApplyFilter()
     {
         var oldId = SelectedRelease?.Id;
-        var matches = _allReleases.Where(release => JavaFilterIndex switch
+        var matches = _allReleases.Where(AllowedUpgradeRelease).Where(release => JavaFilterIndex switch
         {
             1 => release.JavaVersion != "8",
             2 => release.JavaVersion == "8",
@@ -159,9 +180,16 @@ public sealed partial class GtnhPackDownloadViewModel : ObservableObject, IDispo
         Releases.Clear(); foreach (var release in matches) Releases.Add(release);
         SelectedRelease = matches.FirstOrDefault(release => release.Id == oldId);
         OnPropertyChanged(nameof(HasReleases));
-        Status = matches.Length == 0 ? "没有符合筛选的 Prism 客户端，请调整 Java 筛选或刷新目录。" :
-            $"找到 {matches.Length} 个 Prism 客户端包。请选择 GTNH 版本和对应 Java 变体。";
+        Status = matches.Length == 0 ? IsUpgrade
+            ? $"没有高于 GTNH {_upgradeSource!.Version} 且符合筛选的 Prism 客户端，请调整筛选或刷新目录。"
+            : "没有符合筛选的 Prism 客户端，请调整 Java 筛选或刷新目录。"
+            : $"找到 {matches.Length} 个{(IsUpgrade ? "更高版本的 " : "")}Prism 客户端包。请选择 GTNH 版本和对应 Java 变体。";
     }
+
+    /// <summary>镜像版本复用统一升级规则；临时身份仅用于比较，不作为目录或实际安装位置。</summary>
+    private bool AllowedUpgradeRelease(GtnhPackRelease release) => _upgradeSource is not { } source ||
+        GtnhUpgradePolicy.IsNewerTarget(source,
+            new(source.InstancePath + "/.upgrade-mirror-candidate", release.FileName, "", release.Version));
 
     /// <summary>固定本次包选择，交给宿主下载、确认名称、导入和补全，不根据文字推断安装成功。</summary>
     [RelayCommand(CanExecute = nameof(CanInstall), IncludeCancelCommand = true)]
@@ -199,7 +227,7 @@ public sealed partial class GtnhPackDownloadViewModel : ObservableObject, IDispo
 
     /// <summary>安装需要明确选择、已完成目录读取和宿主空闲；不依赖任何已有 GTNH 实例。</summary>
     private bool CanInstall() => _active && !_closing && !IsInstalling && !IsLoading && _canInstall() &&
-        SelectedRelease is not null && Releases.Contains(SelectedRelease);
+        SelectedRelease is not null && Releases.Contains(SelectedRelease) && AllowedUpgradeRelease(SelectedRelease);
 
     /// <summary>原包 100% 仅代表传输完成，后续导入和依赖安装另有结果。</summary>
     private void ApplyProgress(int revision, FileDownloadProgress value)

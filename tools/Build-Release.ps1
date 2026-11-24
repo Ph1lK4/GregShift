@@ -83,9 +83,10 @@ try {
     foreach ($name in @('LICENSE', 'PRIVACY.md', 'SECURITY.md')) {
         Copy-Item -LiteralPath (Join-Path $projectRoot $name) -Destination (Join-Path $documentation $name)
     }
-    foreach ($name in @('uninstall.md', 'code-signing.md', 'release-rc1.md', 'release-rc2.md')) {
+    foreach ($name in @('uninstall.md', 'code-signing.md', 'release-rc1.md', 'release-rc2.md', 'gtnh-tools.md', 'gtnh-native-tools.md', 'gtnh-planner-notices.md')) {
         Copy-Item -LiteralPath (Join-Path $projectRoot "docs/$name") -Destination (Join-Path $payload "docs/$name")
     }
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'src/EML.App/Resources/GtnhPlanner/LICENSE.txt') -Destination (Join-Path $documentation 'LICENSE-GTNH-PLANNER-ZH.txt')
     # 仓库根策略文件与 docs 合并打包后，仅修正这些已知本地文档链接，不改正文或外链。
     foreach ($file in Get-ChildItem -LiteralPath $documentation -File -Filter '*.md') {
         $text = [IO.File]::ReadAllText($file.FullName).Replace('(../PRIVACY.md)', '(PRIVACY.md)').Replace('(../SECURITY.md)', '(SECURITY.md)').Replace('(../LICENSE)', '(LICENSE)').Replace('(docs/uninstall.md)', '(uninstall.md)')
@@ -106,7 +107,7 @@ try {
         'The source includes tools/Build-Release.ps1 and the credential-free tools/Test-CI.ps1.',
         'CurseForge developer authorization is not in the public source; source builds can use their own authorization.',
         'Public Microsoft application configuration is included. No user account credentials are shipped.',
-        'Third-party components retain their own licenses; see LICENSE-DOTNET.txt, LICENSE-MVVM.txt and THIRD-PARTY-NOTICES.txt.'
+        'Third-party components retain their own licenses; see LICENSE-DOTNET.txt, LICENSE-MVVM.txt, LICENSE-WEBVIEW2.txt, LICENSE-GTNH-PLANNER-ZH.txt, gtnh-planner-notices.md and THIRD-PARTY-NOTICES.txt.'
     ) -join "`r`n" | Set-Content -LiteralPath (Join-Path $documentation 'SOURCE.txt') -Encoding utf8NoBOM
 
     # Preserve upstream notices from restored packages and the SDK selected by global.json.
@@ -136,14 +137,21 @@ try {
     $mvvmVersion = $mvvmLibrary[0].Split('/')[1]
     $mvvmLicense = Find-PackageText 'CommunityToolkit.Mvvm' $mvvmVersion @('License.md', 'LICENSE.md', 'LICENSE.txt', 'LICENSE')
     $mvvmNotices = Find-PackageText 'CommunityToolkit.Mvvm' $mvvmVersion @('ThirdPartyNotices.txt')
+    $webViewLibrary = @($assets.libraries.Keys | Where-Object { $_ -like 'Microsoft.Web.WebView2/*' })
+    if ($webViewLibrary.Count -ne 1) { throw 'Expected exactly one Microsoft.Web.WebView2 package.' }
+    $webViewVersion = $webViewLibrary[0].Split('/')[1]
+    $webViewLicense = Find-PackageText 'Microsoft.Web.WebView2' $webViewVersion @('LICENSE.txt')
+    $webViewNotices = Find-PackageText 'Microsoft.Web.WebView2' $webViewVersion @('NOTICE.txt')
     @('Microsoft.NETCore.App:', (Get-Content -Raw -LiteralPath $runtimeLicense), 'Microsoft.WindowsDesktop.App:',
         (Get-Content -Raw -LiteralPath $desktopLicense)) -join "`r`n`r`n" |
         Set-Content -LiteralPath (Join-Path $documentation 'LICENSE-DOTNET.txt') -Encoding utf8NoBOM
     @('Microsoft.NETCore.App:', (Get-Content -Raw -LiteralPath $runtimeNotices), 'Microsoft.NET.Sdk.WindowsDesktop:',
         (Get-Content -Raw -LiteralPath $desktopNotices), 'CommunityToolkit.Mvvm:',
-        (Get-Content -Raw -LiteralPath $mvvmNotices)) -join "`r`n`r`n" |
+        (Get-Content -Raw -LiteralPath $mvvmNotices), "Microsoft.Web.WebView2 $webViewVersion (SDK and loader):",
+        (Get-Content -Raw -LiteralPath $webViewNotices)) -join "`r`n`r`n" |
         Set-Content -LiteralPath (Join-Path $documentation 'THIRD-PARTY-NOTICES.txt') -Encoding utf8NoBOM
     Copy-Item -LiteralPath $mvvmLicense -Destination (Join-Path $documentation 'LICENSE-MVVM.txt')
+    Copy-Item -LiteralPath $webViewLicense -Destination (Join-Path $documentation 'LICENSE-WEBVIEW2.txt')
 
     $audit = Test-EmLReleaseLayout -Path $payload -Version $version -DisplayVersion $displayVersion -RuntimeVersion $runtimeVersion -Layout AppDirectory
     $entries = @(Get-ChildItem -LiteralPath $payload -File -Recurse | Sort-Object FullName | ForEach-Object {

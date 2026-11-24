@@ -123,8 +123,8 @@
     <!-- 保留内部索引，迁移内容已移到 GTNH 主页面，避免改变模组和重命名页的现有绑定。 -->
     <TabItem Header="GTNH 专区">
       <StackPanel Margin="8">
-        <TextBlock Text="数据迁移已移到 GTNH 专区。" Margin="0,0,0,12"/>
-        <Button Content="前往 GTNH 数据迁移" HorizontalAlignment="Left"
+        <TextBlock Text="GTNH 版本升级已移到 GTNH 专区。" Margin="0,0,0,12"/>
+        <Button Content="前往 GTNH 版本升级" HorizontalAlignment="Left"
                 Command="{Binding DataContext.OpenGtnhMigrationCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
       </StackPanel>
     </TabItem>

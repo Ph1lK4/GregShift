@@ -276,7 +276,7 @@ internal static class NavyThemeChecks
     {
         var navigation = Assert.IsType<ListBox>(shell.FindName("NavigationList"));
         var pages = navigation.Items.OfType<ListBoxItem>().Where(item => item.Tag is int).ToArray();
-        Assert.Equal(new[] { 0, 4, 6, 1, 7, 2, 3, 5, 8 }, pages.Select(item => (int)item.Tag).ToArray());
+        Assert.Equal(new[] { 0, 4, 9, 6, 1, 7, 2, 3, 5, 8 }, pages.Select(item => (int)item.Tag).ToArray());
         foreach (var page in pages) AssertInside(page, navigation, $"导航：{page.Tag}");
         navigation.SetCurrentValue(Selector.SelectedValueProperty, 3);
         Assert.Equal(3, model.SelectedPage);
@@ -416,6 +416,7 @@ internal static class NavyThemeChecks
         public bool IsDownloadsPage => SelectedPage == 6;
         public bool IsDownloadCenterPage => SelectedPage == 7;
         public bool IsAppearancePage => SelectedPage == 8;
+        public bool IsGtnhToolsPage => SelectedPage == 9;
     }
 
     /// <summary>提供真实实例模型及内存身份偏好；命令只用于验证状态和绑定，不执行副作用。</summary>

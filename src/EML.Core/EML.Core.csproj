@@ -6,4 +6,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Minecraft/Gtnh/Tools/Data/*.tsv" />
+  </ItemGroup>
 </Project>

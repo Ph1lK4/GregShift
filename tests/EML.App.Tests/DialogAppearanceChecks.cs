@@ -21,6 +21,7 @@ internal static class DialogAppearanceChecks
         FolderImportDialogChecks.Run(Render);
         OperationResultDialogChecks.Run(Render);
         MigrationDialogChecks.Run(Render);
+        GtnhUpgradeVersionDialogChecks.Run(Render);
     }
 
     /// <summary>危险操作默认取消，路径可复制；最小宽度下操作栏仍可达。</summary>
@@ -98,26 +99,37 @@ internal static class DialogAppearanceChecks
     /// <summary>渲染真实外壳内容，窗口保持未显示，预览文件只写到调用方指定目录。</summary>
     internal static void Render(DialogWindow window, string name)
     {
-        LayoutSurface(window, window.Width, window.Height, surface =>
+        RenderScaled(window, name, window.Width, window.Height, 1);
+    }
+
+    /// <summary>在指定可用尺寸及 DPI 渲染，正文滚动不影响固定操作栏。</summary>
+    internal static void RenderScaled(DialogWindow window, string name, double width, double height, double scale)
+    {
+        LayoutSurface(window, width, height, surface =>
         {
+            var footer = surface.FooterActions.TransformToAncestor(surface).TransformBounds(new Rect(surface.FooterActions.RenderSize));
+            Assert.True(footer.Top >= 0 && footer.Bottom <= height);
+            Assert.True(footer.Left >= 0 && footer.Right <= width);
+            Assert.True(surface.BodyScroll.ViewportHeight > 40);
             var directory = Environment.GetEnvironmentVariable("EML_DIALOG_PREVIEW_DIRECTORY");
             if (string.IsNullOrWhiteSpace(directory)) return;
             Directory.CreateDirectory(directory);
-            var bitmap = new RenderTargetBitmap((int)Math.Ceiling(surface.ActualWidth), (int)Math.Ceiling(surface.ActualHeight),
-                96, 96, PixelFormats.Pbgra32);
+            var bitmap = new RenderTargetBitmap((int)Math.Ceiling(surface.ActualWidth * scale), (int)Math.Ceiling(surface.ActualHeight * scale),
+                96 * scale, 96 * scale, PixelFormats.Pbgra32);
             bitmap.Render(surface);
             var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
             var fileName = name.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? name : name + ".png";
             using var file = File.Create(Path.Combine(directory, fileName)); encoder.Save(file);
-        });
+        }, scale);
     }
 
     /// <summary>临时脱离未显示的 Window 完成离屏布局，再恢复所有权，不创建 HWND。</summary>
-    private static void LayoutSurface(DialogWindow window, double width, double height, Action<EML.App.Views.DialogSurface> check)
+    private static void LayoutSurface(DialogWindow window, double width, double height, Action<EML.App.Views.DialogSurface> check, double scale = 1)
     {
         var surface = window.Surface;
         window.Content = null;
         var host = new Border { Width = width, Height = height, Child = surface };
+        VisualTreeHelper.SetRootDpi(host, new DpiScale(scale, scale));
         try
         {
             host.Measure(new Size(width, height)); host.Arrange(new Rect(0, 0, width, height)); host.UpdateLayout();
